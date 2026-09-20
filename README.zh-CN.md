@@ -100,7 +100,7 @@
 
 运行要求：macOS 14 或更新，Apple Silicon 与 Intel 均可。
 
-**直接下载：**到 [最新 Release](https://github.com/jasonwong1991/WonderBox/releases/latest) 下载 `WonderBox-x.y.z.zip`，解压后把 `WonderBox.app` 拖进「应用程序」。
+**直接下载**：到 [最新 Release](https://github.com/jasonwong1991/WonderBox/releases/latest) 下载 `WonderBox-x.y.z.zip`，解压后把 `WonderBox.app` 拖进「应用程序」。
 
 发行版为 ad hoc 签名、未经 Apple 公证，首次打开会被 Gatekeeper 拦截。可以右键 App → 打开，然后在「系统设置 › 隐私与安全性」中点「仍要打开」；或者一次性清除隔离标记：
 
