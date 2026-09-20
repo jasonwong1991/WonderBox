@@ -94,11 +94,21 @@ Drill into any folder level by level with sizes computed in parallel, sort by si
 - Menu bar dashboard: CPU, memory, disk, fan RPM, keep-awake toggle, memory optimization and one-click cleanup without opening the window
 - System / light / dark appearance, four accent colours, launch at login
 
-![Settings page with appearance, menu bar, launch at login and permission status](docs/screenshots/settings.png)
+![Settings page with appearance, language, menu bar, launch at login and permission status](docs/screenshots/settings.png)
 
 ## Install
 
-Requirements: macOS 14 or newer. To build: Xcode 16 or newer.
+Requirements: macOS 14 or newer, Apple Silicon or Intel.
+
+**Download:** grab `WonderBox-x.y.z.zip` from the [latest release](https://github.com/jasonwong1991/WonderBox/releases/latest), unzip, and drag `WonderBox.app` to Applications.
+
+The release build is signed ad hoc, not notarized, so the first launch is blocked by Gatekeeper. Either right-click the app → Open, then confirm in System Settings › Privacy & Security › "Open Anyway", or clear the quarantine flag once:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/WonderBox.app
+```
+
+**Build from source** (Xcode 16 or newer):
 
 ```bash
 git clone https://github.com/jasonwong1991/WonderBox.git
@@ -109,7 +119,7 @@ swift test
 open build/WonderBox.app
 ```
 
-The package builds `WonderBox` plus two helpers. `package_app.sh` produces a locally signed `build/WonderBox.app` with the generated icon and bundled helpers.
+The package builds `WonderBox` plus two helpers. `package_app.sh` produces a locally signed `build/WonderBox.app` with the generated icon, compiled string catalogs and bundled helpers; `UNIVERSAL=1 ./scripts/package_app.sh` builds the Apple Silicon + Intel binary used for releases.
 
 ## Languages
 

@@ -5,10 +5,16 @@ ROOT="${0:A:h:h}"
 CONFIGURATION="${CONFIGURATION:-release}"
 APP="$ROOT/build/WonderBox.app"
 CONTENTS="$APP/Contents"
-BIN_DIR="$ROOT/.build/$CONFIGURATION"
 
 cd "$ROOT"
-swift build -c "$CONFIGURATION"
+# UNIVERSAL=1 builds one binary for Apple Silicon and Intel (release downloads); default is the host arch.
+if [[ "${UNIVERSAL:-0}" == "1" ]]; then
+  swift build -c "$CONFIGURATION" --arch arm64 --arch x86_64
+  BIN_DIR="$ROOT/.build/apple/Products/${(C)CONFIGURATION}"
+else
+  swift build -c "$CONFIGURATION"
+  BIN_DIR="$ROOT/.build/$CONFIGURATION"
+fi
 
 rm -rf "$APP"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Helpers" "$CONTENTS/Resources"

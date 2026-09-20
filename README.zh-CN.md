@@ -21,7 +21,7 @@
   <a href="README.md">English</a> · 简体中文
 </p>
 
-![WonderBox 概览页，显示 CPU、内存、磁盘、网络、电池与运行时间](docs/screenshots/overview.png)
+![WonderBox 概览页，显示 CPU、内存、磁盘、网络、电池与运行时间](docs/screenshots/zh/overview.png)
 
 > 所有扫描与分析都在本机完成，不上传任何数据。
 
@@ -39,7 +39,7 @@
 
 ### 内存
 
-![内存页：活动监视器同款分类、内存压力等级、按 App 的物理占用排行](docs/screenshots/memory.png)
+![内存页：活动监视器同款分类、内存压力等级、按 App 的物理占用排行](docs/screenshots/zh/memory.png)
 
 - 与活动监视器一致的分类——App 内存、联动内存、已压缩、缓存文件、可用——外加交换空间用量与内核内存压力等级
 - 按 App 汇总的物理占用排行，标注每个 App 已压缩或交换的份额，支持退出与强制退出
@@ -48,7 +48,7 @@
 
 ### 空间清理
 
-![深度清理，显示包管理缓存与浏览器缓存](docs/screenshots/cleaner-deep.png)
+![深度清理，显示包管理缓存与浏览器缓存](docs/screenshots/zh/cleaner-deep.png)
 
 **标准扫描** — 用户缓存（含沙盒 App 容器）、日志、Xcode DerivedData、超过 7 天的安装包、废纸篓。
 
@@ -64,17 +64,17 @@
 
 每个类别都能展开到具体项目，保留这个工具的缓存、删掉那个工具的：
 
-![包管理缓存类别内的逐项选择](docs/screenshots/cleaner-detail.png)
+![包管理缓存类别内的逐项选择](docs/screenshots/zh/cleaner-detail.png)
 
 ### 应用卸载
 
-![应用卸载与关联文件](docs/screenshots/applications.png)
+![应用卸载与关联文件](docs/screenshots/zh/applications.png)
 
 盘点 `/Applications` 与 `~/Applications`，从 Spotlight 读取体积、安装日期与最近使用时间；大型/久未使用筛选；逐 App 列出关联的缓存、偏好设置、容器与保存状态；全部移入废纸篓，随时可恢复。
 
 ### 磁盘分析
 
-![磁盘分析，按大小列出主目录下的子项](docs/screenshots/storage.png)
+![磁盘分析，按大小列出主目录下的子项](docs/screenshots/zh/storage.png)
 
 逐层深入任意文件夹，体积并行计算；按大小/名称/日期排序，在 Finder 中显示或将所选项目移入废纸篓。云同步目录不参与体积统计，扫描绝不会触发下载。
 
@@ -82,23 +82,33 @@
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/fan.png" alt="风扇页：实时转速仪表与控制模式"></td>
-    <td width="50%"><img src="docs/screenshots/awake.png" alt="保持唤醒页：时长与显示器选项"></td>
+    <td width="50%"><img src="docs/screenshots/zh/fan.png" alt="风扇页：实时转速仪表与控制模式"></td>
+    <td width="50%"><img src="docs/screenshots/zh/awake.png" alt="保持唤醒页：时长与显示器选项"></td>
   </tr>
 </table>
 
-![菜单栏面板：CPU、内存、磁盘、风扇转速、保持唤醒与快捷操作](docs/screenshots/menubar.png)
+![菜单栏面板：CPU、内存、磁盘、风扇转速、保持唤醒与快捷操作](docs/screenshots/zh/menubar.png)
 
 - 从 AppleSMC 读取实时风扇转速；在开放了风扇写入的机型上提供静音/均衡/强劲/自定模式（含 Apple Silicon 的 `Ftst` 解锁），随时可恢复自动
 - 保持唤醒支持 30 分钟 / 1 小时 / 2 小时 / 持续，可选同时保持显示器点亮，基于公开的 IOKit 断言接口
 - 菜单栏面板：CPU、内存、磁盘、风扇转速、唤醒开关、内存优化与一键清理，不用打开主窗口
 - 跟随系统 / 浅色 / 深色外观，四种强调色，登录时启动
 
-![设置页：外观、菜单栏、登录启动与权限状态](docs/screenshots/settings.png)
+![设置页：外观、语言、菜单栏、登录启动与权限状态](docs/screenshots/zh/settings.png)
 
 ## 安装
 
-运行要求：macOS 14 或更新。编译要求：Xcode 16 或更新。
+运行要求：macOS 14 或更新，Apple Silicon 与 Intel 均可。
+
+**直接下载：**到 [最新 Release](https://github.com/jasonwong1991/WonderBox/releases/latest) 下载 `WonderBox-x.y.z.zip`，解压后把 `WonderBox.app` 拖进「应用程序」。
+
+发行版为 ad hoc 签名、未经 Apple 公证，首次打开会被 Gatekeeper 拦截。可以右键 App → 打开，然后在「系统设置 › 隐私与安全性」中点「仍要打开」；或者一次性清除隔离标记：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/WonderBox.app
+```
+
+**从源码编译**（需要 Xcode 16 或更新）：
 
 ```bash
 git clone https://github.com/jasonwong1991/WonderBox.git
@@ -109,7 +119,7 @@ swift test
 open build/WonderBox.app
 ```
 
-Swift Package 会构建 `WonderBox` 主程序与两个 helper。`package_app.sh` 生成本地签名的 `build/WonderBox.app`，内含生成的图标与打包好的 helper。
+Swift Package 会构建 `WonderBox` 主程序与两个 helper。`package_app.sh` 生成本地签名的 `build/WonderBox.app`，内含生成的图标、编译好的字符串目录与打包好的 helper；`UNIVERSAL=1 ./scripts/package_app.sh` 生成 Release 使用的 Apple Silicon + Intel 通用二进制。
 
 ## 多语言
 
