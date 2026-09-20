@@ -18,7 +18,7 @@ enum FanController {
             else { return nil }
             return FanReading(
                 id: index,
-                name: count == 1 ? "主风扇" : "风扇 \(index + 1)",
+                name: count == 1 ? String(localized: "Main Fan") : String(localized: "Fan \(index + 1)"),
                 currentRPM: raw.current_rpm,
                 minimumRPM: raw.minimum_rpm,
                 maximumRPM: raw.maximum_rpm
@@ -29,7 +29,7 @@ enum FanController {
     @MainActor
     static func apply(mode: FanMode, customRPM: Double, fans: [FanReading]) async -> FanApplyResult {
         guard !fans.isEmpty else {
-            return FanApplyResult(succeeded: false, message: "当前机型未开放 SMC 风扇控制")
+            return FanApplyResult(succeeded: false, message: String(localized: "This Mac does not expose SMC fan control"))
         }
 
         let command: String
@@ -45,12 +45,12 @@ enum FanController {
         let reply = await Task.detached(priority: .userInitiated) { PrivilegedService.send(command) }.value
         switch reply {
         case let .success(message):
-            let fallback = mode == .automatic ? "已恢复系统自动控制，转速将由温控系统调节" : "风扇模式已应用"
+            let fallback = mode == .automatic ? String(localized: "Automatic control restored; the thermal system now manages fan speed") : String(localized: "Fan mode applied")
             return FanApplyResult(succeeded: true, message: message.isEmpty ? fallback : message)
         case let .failure(message):
             return FanApplyResult(succeeded: false, message: message)
         case .unavailable:
-            return FanApplyResult(succeeded: false, message: "后台风扇服务连接已中断")
+            return FanApplyResult(succeeded: false, message: String(localized: "Lost connection to the fan service"))
         }
     }
 

@@ -62,11 +62,17 @@ enum AppFormatters {
 
     static let compactDate: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
         return formatter
     }()
+
+    /// "3 days, 4 hours" / "3天4小时": the two most significant units, in the user's language.
+    private static let durationStyle = Duration.UnitsFormatStyle(
+        allowedUnits: [.days, .hours, .minutes],
+        width: .abbreviated,
+        maximumUnitCount: 2
+    )
 
     static func bytes(_ value: UInt64) -> String {
         byteCount.string(fromByteCount: Int64(clamping: value))
@@ -88,14 +94,9 @@ enum AppFormatters {
         "\(Int((fraction * 100).rounded()))%"
     }
 
-    static func uptime(_ interval: TimeInterval) -> String {
-        let totalMinutes = Int(interval) / 60
-        let days = totalMinutes / (24 * 60)
-        let hours = (totalMinutes / 60) % 24
-        let minutes = totalMinutes % 60
-        if days > 0 { return "\(days) 天 \(hours) 小时" }
-        if hours > 0 { return "\(hours) 小时 \(minutes) 分" }
-        return "\(minutes) 分钟"
+    static func duration(_ interval: TimeInterval) -> String {
+        // Whole minutes only; seconds would make the overview card flicker.
+        Duration.seconds(Int(max(0, interval)) / 60 * 60).formatted(durationStyle)
     }
 
     private static func makeByteCountFormatter(countStyle: ByteCountFormatter.CountStyle) -> ByteCountFormatter {
@@ -104,6 +105,8 @@ enum AppFormatters {
         formatter.countStyle = countStyle
         formatter.includesUnit = true
         formatter.isAdaptive = true
+        // "0 KB", not the English-only "Zero KB".
+        formatter.allowsNonnumericFormatting = false
         return formatter
     }
 }

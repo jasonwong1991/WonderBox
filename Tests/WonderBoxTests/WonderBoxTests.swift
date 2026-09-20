@@ -5,7 +5,41 @@ import XCTest
 final class WonderBoxTests: XCTestCase {
     func testByteFormattingProducesReadableUnit() {
         let formatted = AppFormatters.bytes(1_048_576)
-        XCTAssertTrue(formatted.contains("MB") || formatted.contains("兆"), formatted)
+        XCTAssertTrue(formatted.contains("MB"), formatted)
+    }
+
+    func testDurationFormattingUsesTwoLargestUnits() {
+        let threeDays = AppFormatters.duration(3 * 86_400 + 4 * 3_600 + 5 * 60 + 30)
+        XCTAssertTrue(threeDays.contains("3") && threeDays.contains("4"), threeDays)
+        XCTAssertFalse(threeDays.contains("5"), threeDays)
+        XCTAssertEqual(AppFormatters.duration(-10), AppFormatters.duration(0))
+    }
+
+    func testStringCatalogCoversEveryTranslatableKeyInChinese() throws {
+        let catalogURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Sources/WonderBox/Resources/Localizable.xcstrings")
+        let catalog = try JSONSerialization.jsonObject(with: Data(contentsOf: catalogURL)) as? [String: Any]
+        let strings = try XCTUnwrap(catalog?["strings"] as? [String: [String: Any]])
+        XCTAssertEqual(catalog?["sourceLanguage"] as? String, "en")
+
+        let untranslated = strings.filter { key, entry in
+            guard entry["shouldTranslate"] as? Bool != false else { return false }
+            let localizations = entry["localizations"] as? [String: [String: [String: String]]]
+            return localizations?["zh-Hans"]?["stringUnit"]?["value"]?.isEmpty ?? true
+        }
+        XCTAssertTrue(untranslated.isEmpty, "Missing zh-Hans: \(untranslated.keys.sorted())")
+
+        for (key, entry) in strings {
+            guard let value = (entry["localizations"] as? [String: [String: [String: String]]])?["zh-Hans"]?["stringUnit"]?["value"] else { continue }
+            XCTAssertEqual(specifierCount(key), specifierCount(value), "Specifier mismatch for \(key) → \(value)")
+        }
+    }
+
+    private func specifierCount(_ format: String) -> Int {
+        format.components(separatedBy: "%").dropFirst().filter { !$0.hasPrefix("%") }.count
     }
 
     func testCleanupSafetyAcceptsOnlyChildrenOfExpectedRoot() {
@@ -94,11 +128,11 @@ final class WonderBoxTests: XCTestCase {
 
         XCTAssertEqual(report.usedDelta, -1_500 * Int64(megabyte))
         XCTAssertEqual(report.compressedDelta, -500 * Int64(megabyte))
-        XCTAssertTrue(report.summary.hasPrefix("已释放 已用内存 −"), report.summary)
+        XCTAssertTrue(report.summary.hasPrefix("Released Memory Used −"), report.summary)
         XCTAssertTrue(report.summary.contains("App −"), report.summary)
-        XCTAssertTrue(report.summary.contains("已压缩 −"), report.summary)
-        XCTAssertTrue(report.summary.contains("缓存文件 −"), report.summary)
-        XCTAssertFalse(report.summary.contains("未能"), report.summary)
+        XCTAssertTrue(report.summary.contains("Compressed −"), report.summary)
+        XCTAssertTrue(report.summary.contains("Cached Files −"), report.summary)
+        XCTAssertFalse(report.summary.contains("Could not"), report.summary)
     }
 
     func testMemoryOptimizationReportIsHonestAboutNoise() {
@@ -108,8 +142,8 @@ final class WonderBoxTests: XCTestCase {
         after.cached += 4 * 1_048_576
         let report = MemoryOptimizationReport(before: before, after: after, steps: [.purge])
 
-        XCTAssertTrue(report.summary.contains("没有可回收的缓存"), report.summary)
-        XCTAssertTrue(report.summary.contains("未能向 App 发送内存压力通知"), report.summary)
+        XCTAssertTrue(report.summary.contains("No reclaimable cache"), report.summary)
+        XCTAssertTrue(report.summary.contains("Could not send the memory-pressure notification"), report.summary)
     }
 
     func testMemoryOptimizationReportNamesRespondingApplications() {
@@ -122,11 +156,11 @@ final class WonderBoxTests: XCTestCase {
             ApplicationMemoryRelease(name: "Code", bytes: 100 * megabyte)
         ]
         let report = MemoryOptimizationReport(before: before, after: after, steps: [.pressure, .purge], applicationReleases: releases)
-        let expectedTail = "响应的 App：Chrome \(AppFormatters.signedMemory(-300 * Int64(megabyte))) · Code \(AppFormatters.signedMemory(-100 * Int64(megabyte)))"
+        let expectedTail = "Responding apps: Chrome \(AppFormatters.signedMemory(-300 * Int64(megabyte))) · Code \(AppFormatters.signedMemory(-100 * Int64(megabyte)))"
         XCTAssertTrue(report.summary.hasSuffix(expectedTail), report.summary)
 
         let silent = MemoryOptimizationReport(before: before, after: after, steps: [.pressure])
-        XCTAssertTrue(silent.summary.contains("各 App 未释放明显缓存"), silent.summary)
+        XCTAssertTrue(silent.summary.contains("No app released a noticeable amount of cache"), silent.summary)
     }
 
     func testApplicationReleaseAttributionIgnoresGrowthAndNoise() {
@@ -169,7 +203,7 @@ final class WonderBoxTests: XCTestCase {
     func testMemoryOptimizationStepParsingIgnoresUnknownTokens() {
         XCTAssertEqual(MemoryOptimizationStep.parse("pressure purge"), [.pressure, .purge])
         XCTAssertEqual(MemoryOptimizationStep.parse("purge"), [.purge])
-        XCTAssertEqual(MemoryOptimizationStep.parse("系统非活跃缓存已整理"), [])
+        XCTAssertEqual(MemoryOptimizationStep.parse("Inactive system caches were consolidated"), [])
     }
 
     func testProcessMemoryInspectorRollsHelpersIntoHostApplication() {

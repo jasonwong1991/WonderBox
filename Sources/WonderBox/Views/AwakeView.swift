@@ -20,7 +20,7 @@ private struct AwakeContent: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                PageHeader(title: "保持唤醒", subtitle: "防止空闲睡眠")
+                PageHeader(title: String(localized: "Keep Awake"), subtitle: String(localized: "Prevent idle sleep"))
 
                 VStack(spacing: 22) {
                     Button {
@@ -45,12 +45,12 @@ private struct AwakeContent: View {
                     }
                     .buttonStyle(.plain)
                     .keyboardShortcut(.space, modifiers: [])
-                    .accessibilityLabel(preventer.isActive ? "停止保持唤醒" : "开始保持唤醒")
+                    .accessibilityLabel(preventer.isActive ? "Stop Keeping Awake" : "Start Keeping Awake")
 
                     VStack(spacing: 5) {
-                        Text(preventer.isActive ? "Mac 将保持唤醒" : "当前允许自动睡眠")
+                        Text(preventer.isActive ? "Your Mac Will Stay Awake" : "Automatic Sleep Allowed")
                             .font(.system(size: 22, weight: .bold, design: .rounded))
-                        Text(preventer.isActive ? preventer.remainingText : "点击电源按钮开启")
+                        Text(preventer.isActive ? preventer.remainingText : String(localized: "Click the power button to start"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
@@ -61,10 +61,10 @@ private struct AwakeContent: View {
                 .appPanel()
 
                 VStack(alignment: .leading, spacing: 18) {
-                    Text("唤醒选项")
+                    Text("Options")
                         .font(.headline)
 
-                    Picker("持续时间", selection: $duration) {
+                    Picker("Duration", selection: $duration) {
                         ForEach(AwakeDuration.allCases) { item in
                             Text(item.title).tag(item.rawValue)
                         }
@@ -75,7 +75,7 @@ private struct AwakeContent: View {
                     Divider()
 
                     Toggle(isOn: $keepDisplayAwake) {
-                        Label("同时保持显示器点亮", systemImage: "display")
+                        Label("Also keep the display awake", systemImage: "display")
                     }
                     .disabled(preventer.isActive)
                 }

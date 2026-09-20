@@ -175,9 +175,9 @@ enum ApplicationScanner {
             }
         }
         if failures.isEmpty {
-            return "已将 \(removed) 项移入废纸篓"
+            return String(localized: "Moved \(removed) items to the Trash")
         }
-        return "已移除 \(removed) 项，\(failures.count) 项需要更高权限"
+        return String(localized: "Removed \(removed) items; \(failures.count) need higher privileges")
     }
 
     static func installedBundleIdentifiers() -> Set<String> {
@@ -381,9 +381,9 @@ enum StorageCleaner {
         }
 
         if failedCount > 0 {
-            return "已清理 \(removedCount) 项；\(failedCount) 项被系统保护"
+            return String(localized: "Cleaned \(removedCount) items; \(failedCount) are protected by the system")
         }
-        return "已清理 \(removedCount) 项，释放约 \(AppFormatters.bytes(removed))"
+        return String(localized: "Cleaned \(removedCount) items, freeing about \(AppFormatters.bytes(removed))")
     }
 
     static func isSafe(_ url: URL, for kind: CleanupKind) -> Bool {
@@ -779,7 +779,7 @@ private enum FinderTrashService {
                   byteCount.isFinite,
                   byteCount >= 0
             else {
-                return Snapshot(itemCount: 0, size: 0, accessMessage: "废纸篓容量返回格式异常，请重新扫描")
+                return Snapshot(itemCount: 0, size: 0, accessMessage: String(localized: "Finder returned an unexpected Trash size; please rescan"))
             }
             return Snapshot(
                 itemCount: max(0, itemCount),
@@ -790,7 +790,7 @@ private enum FinderTrashService {
             return Snapshot(
                 itemCount: 0,
                 size: 0,
-                accessMessage: "请在“系统设置 > 隐私与安全性 > 自动化”中允许 WonderBox 控制 Finder"
+                accessMessage: String(localized: "Allow WonderBox to control Finder in System Settings > Privacy & Security > Automation")
             )
         }
     }

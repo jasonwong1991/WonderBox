@@ -7,15 +7,17 @@ struct SettingsView: View {
     @AppStorage("accent") private var accent = AccentChoice.ocean.rawValue
     @AppStorage("showMenuBar") private var showMenuBar = true
     @StateObject private var launchAtLogin = LaunchAtLoginController()
+    @State private var language = AppLanguage.current
+    @State private var showLanguageRelaunch = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                PageHeader(title: "设置", subtitle: "外观与启动行为")
+                PageHeader(title: String(localized: "Settings"), subtitle: String(localized: "Appearance, language and startup"))
 
-                settingsSection("外观", symbol: "paintbrush") {
-                    settingRow("主题") {
-                        Picker("主题", selection: $appearance) {
+                settingsSection(String(localized: "Appearance"), symbol: "paintbrush") {
+                    settingRow(String(localized: "Theme")) {
+                        Picker("Theme", selection: $appearance) {
                             ForEach(AppAppearance.allCases) { item in
                                 Text(item.title).tag(item.rawValue)
                             }
@@ -26,7 +28,24 @@ struct SettingsView: View {
 
                     Divider()
 
-                    settingRow("强调色") {
+                    settingRow(String(localized: "Language")) {
+                        Picker("Language", selection: $language) {
+                            ForEach(AppLanguage.allCases) { item in
+                                Text(item.title).tag(item)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 150)
+                        .onChange(of: language) { _, selected in
+                            guard selected != AppLanguage.current else { return }
+                            selected.apply()
+                            showLanguageRelaunch = true
+                        }
+                    }
+
+                    Divider()
+
+                    settingRow(String(localized: "Accent Color")) {
                         HStack(spacing: 12) {
                             ForEach(AccentChoice.allCases) { choice in
                                 Button {
@@ -50,11 +69,11 @@ struct SettingsView: View {
                     }
                 }
 
-                settingsSection("常驻", symbol: "menubar.rectangle") {
+                settingsSection(String(localized: "Always Available"), symbol: "menubar.rectangle") {
                     Toggle(isOn: $showMenuBar) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("菜单栏快捷入口")
-                            Text("状态概览与保持唤醒")
+                            Text("Menu bar shortcut")
+                            Text("Status overview and keep awake")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -67,8 +86,8 @@ struct SettingsView: View {
                         set: { launchAtLogin.setEnabled($0) }
                     )) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("登录时启动")
-                            Text("使用 macOS Service Management")
+                            Text("Launch at login")
+                            Text("Uses macOS Service Management")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -79,17 +98,17 @@ struct SettingsView: View {
                     InlineMessage(text: message, isError: true)
                 }
 
-                settingsSection("权限与构建", symbol: "lock.shield") {
-                    capabilityRow("App Store 核心功能", status: "公有 API", color: .healthy)
+                settingsSection(String(localized: "Permissions and Build"), symbol: "lock.shield") {
+                    capabilityRow(String(localized: "App Store core features"), status: String(localized: "Public APIs"), color: .healthy)
                     Divider()
-                    capabilityRow("风扇控制", status: FanController.isAvailable ? "Direct 可用" : "当前不可用", color: FanController.isAvailable ? .warning : .secondary)
+                    capabilityRow(String(localized: "Fan control"), status: FanController.isAvailable ? String(localized: "Direct build") : String(localized: "Unavailable"), color: FanController.isAvailable ? .warning : .secondary)
                     Divider()
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("完全磁盘访问")
+                            Text("Full Disk Access")
                             Text(model.supportsFullDiskAccess
-                                ? "直接分析主目录与受保护文件夹"
-                                : "App Store 版本使用用户选择的目录权限")
+                                ? String(localized: "Analyze the home folder and protected folders directly")
+                                : String(localized: "The App Store build uses user-selected folder access"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -104,16 +123,16 @@ struct SettingsView: View {
                         } label: {
                             Image(systemName: "arrow.clockwise")
                         }
-                        .help("重新检查授权状态")
-                        .accessibilityLabel("重新检查完全磁盘访问状态")
-                        Button("完全授权") { model.openFullDiskAccessSettings() }
+                        .help("Re-check authorization")
+                        .accessibilityLabel("Re-check Full Disk Access status")
+                        Button("Grant Access") { model.openFullDiskAccessSettings() }
                             .disabled(!model.supportsFullDiskAccess)
                     }
                 }
 
                 HStack {
                     Image(systemName: "checkmark.shield")
-                    Text("所有扫描结果仅在本机处理")
+                    Text("All scan results stay on this Mac")
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -123,6 +142,16 @@ struct SettingsView: View {
             .frame(maxWidth: 820, alignment: .leading)
         }
         .onAppear { model.refreshFullDiskAccessStatus() }
+        .confirmationDialog(
+            "Relaunch to change the language?",
+            isPresented: $showLanguageRelaunch,
+            titleVisibility: .visible
+        ) {
+            Button("Relaunch Now") { AppLanguage.relaunch() }
+            Button("Later", role: .cancel) {}
+        } message: {
+            Text("The new language takes effect the next time WonderBox starts.")
+        }
     }
 
     private var fullDiskAccessColor: Color {

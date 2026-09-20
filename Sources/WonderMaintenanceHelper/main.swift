@@ -36,7 +36,7 @@ for item in items {
 }
 
 if failed > 0 {
-    print("系统缓存已清理 \(removed) 项，\(failed) 项受系统保护")
+    print("Cleaned \(removed) system cache items; \(failed) are protected by the system")
 } else {
-    print("系统缓存已清理 \(removed) 项")
+    print("Cleaned \(removed) system cache items")
 }

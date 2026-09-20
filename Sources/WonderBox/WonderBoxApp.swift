@@ -42,15 +42,15 @@ struct WonderBoxApplication: App {
         .defaultSize(width: 1_180, height: 760)
         .windowStyle(.hiddenTitleBar)
         .commands {
-            CommandMenu("工具") {
-                Button("刷新状态") {
+            CommandMenu("Tools") {
+                Button("Refresh Status") {
                     Task { await model.refreshMetrics() }
                 }
                 .keyboardShortcut("r", modifiers: .command)
 
                 Divider()
 
-                Button(model.sleepPreventer.isActive ? "停止保持唤醒" : "持续保持唤醒") {
+                Button(model.sleepPreventer.isActive ? "Stop Keeping Awake" : "Keep Awake Indefinitely") {
                     if model.sleepPreventer.isActive {
                         model.sleepPreventer.disable()
                     } else {
@@ -112,7 +112,7 @@ private struct MenuBarContentView: View {
                 }
                 Spacer()
                 StatusPill(
-                    text: model.snapshot.thermalState == .nominal ? "温控正常" : "温度较高",
+                    text: model.snapshot.thermalState == .nominal ? String(localized: "Thermals Normal") : String(localized: "Running Hot"),
                     color: model.snapshot.thermalState == .nominal ? .healthy : .warning
                 )
                 Button {
@@ -128,14 +128,14 @@ private struct MenuBarContentView: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 28, height: 28)
                 .disabled(isRefreshing)
-                .help("刷新状态")
-                .accessibilityLabel("刷新菜单栏状态")
+                .help("Refresh Status")
+                .accessibilityLabel("Refresh menu bar status")
             }
 
             HStack(spacing: 8) {
                 MenuMetric(title: "CPU", value: AppFormatters.percent(model.snapshot.cpuUsage))
-                MenuMetric(title: "内存", value: AppFormatters.percent(model.snapshot.memoryFraction))
-                MenuMetric(title: "磁盘", value: AppFormatters.percent(model.snapshot.diskFraction))
+                MenuMetric(title: String(localized: "Memory"), value: AppFormatters.percent(model.snapshot.memoryFraction))
+                MenuMetric(title: String(localized: "Disk"), value: AppFormatters.percent(model.snapshot.diskFraction))
             }
 
             fanSummary
@@ -152,8 +152,8 @@ private struct MenuBarContentView: View {
             } label: {
                 Label(
                     preventer.isActive
-                        ? "停止保持唤醒 · \(preventer.remainingText)"
-                        : "保持唤醒 · \(selectedAwakeDuration.title)",
+                        ? String(localized: "Stop Keeping Awake · \(preventer.remainingText)")
+                        : String(localized: "Keep Awake · \(selectedAwakeDuration.title)"),
                     systemImage: preventer.isActive ? "moon.zzz.fill" : "moon.zzz"
                 )
                 .frame(maxWidth: .infinity)
@@ -166,14 +166,14 @@ private struct MenuBarContentView: View {
 
             HStack(spacing: 8) {
                 MenuQuickAction(
-                    title: "优化内存",
+                    title: String(localized: "Optimize Memory"),
                     symbol: "memorychip",
                     isWorking: optimizer.isOptimizing,
                     isDisabled: model.isQuickCleaning,
                     action: { Task { await model.optimizeMemory() } }
                 )
                 MenuQuickAction(
-                    title: "一键清理",
+                    title: String(localized: "Quick Clean"),
                     symbol: "sparkles",
                     isWorking: model.isQuickCleaning,
                     isDisabled: optimizer.isOptimizing,
@@ -195,7 +195,7 @@ private struct MenuBarContentView: View {
                         Image(systemName: "xmark")
                     }
                     .buttonStyle(.plain)
-                    .help("关闭消息")
+                    .help("Dismiss message")
                 }
                 .padding(9)
                 .background((actionMessageIsError ? Color.warning : Color.healthy).opacity(0.08))
@@ -208,7 +208,7 @@ private struct MenuBarContentView: View {
                 Button {
                     openApp()
                 } label: {
-                    Label("打开完整应用", systemImage: "macwindow")
+                    Label("Open Main Window", systemImage: "macwindow")
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.primary)
@@ -221,9 +221,9 @@ private struct MenuBarContentView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.primary)
-                .help("设置")
-                .accessibilityLabel("打开设置")
-                Button("退出") { NSApp.terminate(nil) }
+                .help("Settings")
+                .accessibilityLabel("Open settings")
+                Button("Quit") { NSApp.terminate(nil) }
                     .buttonStyle(.plain)
                     .foregroundStyle(.primary)
             }
@@ -237,11 +237,11 @@ private struct MenuBarContentView: View {
     private var fanSummary: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Label("风扇转速", systemImage: "fan")
+                Label("Fan Speed", systemImage: "fan")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text(model.fans.isEmpty ? "未检测到" : "\(model.fans.count) 个风扇")
+                Text(model.fans.isEmpty ? "Not detected" : "\(model.fans.count) fans")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -296,7 +296,7 @@ private struct MenuQuickAction: View {
                 } else {
                     Image(systemName: symbol)
                 }
-                Text(isWorking ? "正在处理" : title)
+                Text(isWorking ? String(localized: "Working…") : title)
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity)

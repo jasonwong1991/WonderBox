@@ -45,8 +45,8 @@ struct RootView: View {
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
-                .help("刷新状态")
-                .accessibilityLabel("刷新状态")
+                .help("Refresh Status")
+                .accessibilityLabel("Refresh Status")
             }
         }
         .onAppear {
@@ -94,7 +94,7 @@ struct RootView: View {
             Circle()
                 .fill(model.isMonitoring ? Color.healthy : Color.secondary)
                 .frame(width: 7, height: 7)
-            Text(model.isMonitoring ? "实时监测" : "监测暂停")
+            Text(model.isMonitoring ? "Live monitoring" : "Monitoring paused")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -134,7 +134,7 @@ private struct FullDiskAccessPrompt: View {
                     .scaledToFit()
                     .frame(width: 54, height: 54)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("允许完整磁盘扫描")
+                    Text("Allow Full Disk Scanning")
                         .font(.title2.bold())
                     Text("WonderBox")
                         .font(.subheadline)
@@ -142,14 +142,14 @@ private struct FullDiskAccessPrompt: View {
                 }
             }
 
-            Text("授权后可直接分析主目录、应用数据和受保护文件夹，不再为每个目录重复请求访问。扫描结果只在本机处理。")
+            Text("With access granted, WonderBox can analyze your home folder, app data and protected folders without asking for each directory. Scan results never leave this Mac.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Toggle("不再提醒", isOn: $suppressFuturePrompts)
+            Toggle("Don’t ask again", isOn: $suppressFuturePrompts)
 
             HStack {
-                Button("暂不处理") {
+                Button("Not Now") {
                     isPresented = false
                 }
                 Spacer()
@@ -157,7 +157,7 @@ private struct FullDiskAccessPrompt: View {
                     model.openFullDiskAccessSettings()
                     isPresented = false
                 } label: {
-                    Label("前往完全授权", systemImage: "lock.open")
+                    Label("Grant Full Disk Access", systemImage: "lock.open")
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)

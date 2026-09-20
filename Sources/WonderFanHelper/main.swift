@@ -62,41 +62,41 @@ private func optimizeMemory() -> String {
     if runTool("/usr/sbin/purge") {
         steps.append("purge")
     }
-    guard !steps.isEmpty else { return "error 系统内存工具不可用\n" }
+    guard !steps.isEmpty else { return "error The system memory tools are unavailable\n" }
     return "ok \(steps.joined(separator: " "))\n"
 }
 
 private func handle(_ request: String) -> String {
     let fields = request.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: " ")
-    guard let command = fields.first else { return "error 空指令\n" }
+    guard let command = fields.first else { return "error Empty command\n" }
     switch command {
     case "version":
         return "ok \(protocolVersion)\n"
     case "status":
-        guard wc_smc_is_available() == 1 else { return "error AppleSMC 不可用\n" }
+        guard wc_smc_is_available() == 1 else { return "error AppleSMC is unavailable\n" }
         return "ok fans=\(wc_smc_fan_count()) control=\(wc_smc_fan_control_capabilities())\n"
     case "set-auto":
-        guard fields.count == 1 else { return "error 自动模式参数无效\n" }
-        guard wc_smc_is_available() == 1 else { return "error AppleSMC 不可用\n" }
+        guard fields.count == 1 else { return "error Invalid arguments for set-auto\n" }
+        guard wc_smc_is_available() == 1 else { return "error AppleSMC is unavailable\n" }
         guard wc_smc_set_all_fans_auto() == 0 else {
-            return "error \(smcFailure("恢复系统自动风扇控制失败"))\n"
+            return "error \(smcFailure("Failed to restore automatic fan control"))\n"
         }
-        return "ok 已恢复系统自动控制\n"
+        return "ok Automatic fan control restored\n"
     case "set-rpm":
         guard fields.count == 2,
               let rpm = Double(fields[1]),
               (800...10_000).contains(rpm)
-        else { return "error RPM 必须在 800 到 10000 之间\n" }
-        guard wc_smc_is_available() == 1 else { return "error AppleSMC 不可用\n" }
+        else { return "error RPM must be between 800 and 10000\n" }
+        guard wc_smc_is_available() == 1 else { return "error AppleSMC is unavailable\n" }
         guard wc_smc_set_all_fans_rpm(rpm) == 0 else {
-            return "error \(smcFailure("设置风扇目标转速失败"))\n"
+            return "error \(smcFailure("Failed to set the fan target speed"))\n"
         }
-        return "ok 风扇目标转速已应用\n"
+        return "ok Fan target speed applied\n"
     case "optimize-memory":
-        guard fields.count == 1 else { return "error 内存优化参数无效\n" }
+        guard fields.count == 1 else { return "error Invalid arguments for optimize-memory\n" }
         return optimizeMemory()
     default:
-        return "error 不支持的指令\n"
+        return "error Unsupported command\n"
     }
 }
 

@@ -4,7 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "WonderBox",
-    defaultLocalization: "zh-Hans",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v14)
     ],
@@ -26,8 +26,12 @@ let package = Package(
             name: "WonderBox",
             dependencies: ["CSMC"],
             path: "Sources/WonderBox",
+            // String catalogs are compiled into the app bundle by scripts/package_app.sh;
+            // `swift build` would only copy the raw .xcstrings, which Foundation cannot load.
             exclude: [
                 "Resources/Info.plist",
+                "Resources/InfoPlist.xcstrings",
+                "Resources/Localizable.xcstrings",
                 "Resources/PrivacyInfo.xcprivacy",
                 "Resources/com.wondercraft.WonderBox.FanHelper.plist",
                 "Resources/WonderBox-AppStore.entitlements"

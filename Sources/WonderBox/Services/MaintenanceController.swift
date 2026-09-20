@@ -4,13 +4,13 @@ enum MaintenanceController {
     @MainActor
     static func cleanSystemCaches() -> String {
         guard let helper = HelperLocator.executable(named: "WonderMaintenanceHelper") else {
-            return "维护 helper 未安装"
+            return String(localized: "The maintenance helper is not installed")
         }
         switch AdministratorShell.run("\(AdministratorShell.quote(helper.path)) clean-system-caches") {
         case let .success(output):
-            return output.isEmpty ? "系统缓存已清理" : output
+            return output.isEmpty ? String(localized: "System caches cleaned") : L10n.message(output)
         case let .failure(failure):
-            return failure.isCancelled ? "系统缓存授权已取消" : failure.message
+            return failure.isCancelled ? String(localized: "System cache authorization was cancelled") : failure.message
         }
     }
 }

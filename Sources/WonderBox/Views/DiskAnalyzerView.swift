@@ -22,9 +22,9 @@ struct DiskAnalyzerView: View {
         var id: Self { self }
         var title: String {
             switch self {
-            case .size: "按大小"
-            case .name: "按名称"
-            case .modified: "按修改时间"
+            case .size: String(localized: "By Size")
+            case .name: String(localized: "By Name")
+            case .modified: String(localized: "By Date Modified")
             }
         }
     }
@@ -53,9 +53,9 @@ struct DiskAnalyzerView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             PageHeader(
-                title: "磁盘分析",
+                title: String(localized: "Disk Analyzer"),
                 subtitle: displayPath(directory),
-                actionTitle: "重新扫描",
+                actionTitle: String(localized: "Rescan"),
                 actionSymbol: "arrow.clockwise",
                 isWorking: isScanning,
                 action: requestScan
@@ -82,8 +82,8 @@ struct DiskAnalyzerView: View {
                 scan()
             } else {
                 message = model.supportsFullDiskAccess
-                    ? "完全磁盘访问尚未授权；可前往授权，或手动选择一个目录。"
-                    : "请选择需要分析的目录，WonderBox 会使用系统目录授权。"
+                    ? String(localized: "Full Disk Access is not granted yet; grant it, or choose a folder manually.")
+                    : String(localized: "Choose a folder to analyze; WonderBox uses the system folder permission.")
             }
         }
         .onChange(of: model.fullDiskAccessStatus) { _, status in
@@ -92,14 +92,14 @@ struct DiskAnalyzerView: View {
             }
         }
         .confirmationDialog(
-            "将所选项目移入废纸篓？",
+            "Move the selected items to the Trash?",
             isPresented: $confirmRemoval,
             titleVisibility: .visible
         ) {
-            Button("移入废纸篓", role: .destructive, action: removeSelected)
-            Button("取消", role: .cancel) {}
+            Button("Move to Trash", role: .destructive, action: removeSelected)
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("共 \(selected.count) 项，约 \(AppFormatters.bytes(selectedSize))。")
+            Text("\(selected.count) items, about \(AppFormatters.bytes(selectedSize)).")
         }
     }
 
@@ -108,17 +108,17 @@ struct DiskAnalyzerView: View {
             Image(systemName: "lock.shield")
                 .foregroundStyle(Color.warning)
             VStack(alignment: .leading, spacing: 2) {
-                Text(model.supportsFullDiskAccess ? "完整扫描需要完全磁盘访问" : "请选择要分析的目录")
+                Text(model.supportsFullDiskAccess ? "Full scans need Full Disk Access" : "Choose a folder to analyze")
                     .font(.subheadline.weight(.medium))
                 Text(model.supportsFullDiskAccess
-                    ? "授权一次后，重新扫描不会再逐个请求目录权限。"
-                    : "App Store 沙盒使用系统目录选择授权。")
+                    ? String(localized: "After granting access once, rescans no longer ask for each folder.")
+                    : String(localized: "The App Store sandbox uses the system folder picker for access."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
             if model.supportsFullDiskAccess {
-                Button("完全授权") { model.openFullDiskAccessSettings() }
+                Button("Grant Access") { model.openFullDiskAccessSettings() }
             }
         }
         .padding(.horizontal, 14)
@@ -135,12 +135,12 @@ struct DiskAnalyzerView: View {
                 Image(systemName: "chevron.left")
             }
             .disabled(history.isEmpty || isScanning)
-            .help("返回上一级扫描")
+            .help("Back to the previous folder")
 
             Button {
                 chooseDirectory()
             } label: {
-                Label("选择目录", systemImage: "folder.badge.plus")
+                Label("Choose Folder", systemImage: "folder.badge.plus")
             }
             .disabled(isScanning)
 
@@ -149,10 +149,10 @@ struct DiskAnalyzerView: View {
             } label: {
                 Image(systemName: "folder")
             }
-            .help("在 Finder 中打开")
+            .help("Open in Finder")
 
             Menu {
-                Picker("排序", selection: $sort) {
+                Picker("Sort", selection: $sort) {
                     ForEach(DiskSort.allCases) { option in
                         Text(option.title).tag(option)
                     }
@@ -163,7 +163,7 @@ struct DiskAnalyzerView: View {
 
             Spacer()
 
-            TextField("搜索文件或文件夹", text: $search)
+            TextField("Search files or folders", text: $search)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 230)
         }
@@ -171,13 +171,13 @@ struct DiskAnalyzerView: View {
 
     private var summary: some View {
         HStack(spacing: 14) {
-            Label("\(items.count) 项", systemImage: "doc.on.doc")
+            Label("\(items.count) items", systemImage: "doc.on.doc")
             Divider().frame(height: 16)
-            Label("当前层共 \(AppFormatters.bytes(items.reduce(0) { $0 + $1.size }))", systemImage: "externaldrive")
+            Label("\(AppFormatters.bytes(items.reduce(0) { $0 + $1.size })) at this level", systemImage: "externaldrive")
             Spacer()
             if isScanning {
                 ProgressView().controlSize(.small)
-                Text("正在计算大小")
+                Text("Calculating sizes")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -192,9 +192,9 @@ struct DiskAnalyzerView: View {
     private var itemList: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("名称").frame(maxWidth: .infinity, alignment: .leading)
-                Text("大小").frame(width: 100, alignment: .trailing)
-                Text("修改时间").frame(width: 110, alignment: .trailing)
+                Text("Name").frame(maxWidth: .infinity, alignment: .leading)
+                Text("Size").frame(width: 100, alignment: .trailing)
+                Text("Modified").frame(width: 110, alignment: .trailing)
                 Color.clear.frame(width: 28)
             }
             .font(.caption.weight(.medium))
@@ -206,8 +206,8 @@ struct DiskAnalyzerView: View {
             if displayedItems.isEmpty, !isScanning {
                 EmptyContentView(
                     symbol: "externaldrive.badge.questionmark",
-                    title: search.isEmpty ? "当前目录没有可显示项目" : "没有匹配项目",
-                    detail: search.isEmpty ? "可选择其他目录继续分析" : "请更换搜索关键词"
+                    title: search.isEmpty ? String(localized: "Nothing to Show Here") : String(localized: "No Matches"),
+                    detail: search.isEmpty ? String(localized: "Choose another folder to continue") : String(localized: "Try a different search term")
                 )
             } else {
                 ScrollView {
@@ -247,7 +247,7 @@ struct DiskAnalyzerView: View {
             }
             .buttonStyle(.plain)
             .disabled(isScanning)
-            Text(item.size > 0 ? AppFormatters.bytes(item.size) : "未计算")
+            Text(item.size > 0 ? AppFormatters.bytes(item.size) : String(localized: "Not sized"))
                 .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .monospacedDigit()
                 .frame(width: 100, alignment: .trailing)
@@ -258,7 +258,7 @@ struct DiskAnalyzerView: View {
             if item.isDirectory {
                 Button { enter(item.url) } label: { Image(systemName: "chevron.right") }
                     .buttonStyle(.plain)
-                    .help("扫描此文件夹")
+                    .help("Scan this folder")
                     .disabled(isScanning)
             } else {
                 Color.clear.frame(width: 16)
@@ -270,7 +270,7 @@ struct DiskAnalyzerView: View {
 
     private var footer: some View {
         HStack {
-            Text(selected.isEmpty ? "选择项目后可在 Finder 中查看或移入废纸篓" : "已选 \(selected.count) 项 · \(AppFormatters.bytes(selectedSize))")
+            Text(selected.isEmpty ? "Select items to show them in Finder or move them to the Trash" : "\(selected.count) selected · \(AppFormatters.bytes(selectedSize))")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -278,13 +278,13 @@ struct DiskAnalyzerView: View {
                 let urls = items.filter { selected.contains($0.id) }.map(\.url)
                 NSWorkspace.shared.activateFileViewerSelecting(urls)
             } label: {
-                Label("在 Finder 中显示", systemImage: "folder")
+                Label("Show in Finder", systemImage: "folder")
             }
             .disabled(selected.isEmpty)
             Button(role: .destructive) {
                 confirmRemoval = true
             } label: {
-                Label("移入废纸篓", systemImage: "trash")
+                Label("Move to Trash", systemImage: "trash")
             }
             .disabled(selected.isEmpty)
         }
@@ -302,14 +302,14 @@ struct DiskAnalyzerView: View {
             items = result
             isScanning = false
             if result.isEmpty {
-                message = "未读取到项目；受保护目录可通过“选择目录”授予访问权限"
+                message = String(localized: "Nothing could be read; use “Choose Folder” to grant access to protected folders")
             }
         }
     }
 
     private func requestScan() {
         guard model.fullDiskAccessStatus == .authorized || hasScopedDirectoryAccess else {
-            message = "请先完成完全授权，或使用“选择目录”授予单个目录访问。"
+            message = String(localized: "Grant Full Disk Access first, or use “Choose Folder” to grant access to a single folder.")
             return
         }
         scan()
@@ -334,7 +334,7 @@ struct DiskAnalyzerView: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "扫描"
+        panel.prompt = String(localized: "Scan")
         panel.directoryURL = directory
         guard panel.runModal() == .OK, let url = panel.url else { return }
         _ = url.startAccessingSecurityScopedResource()
@@ -353,8 +353,8 @@ struct DiskAnalyzerView: View {
                 DiskAnalyzer.moveToTrash(targets, inside: root)
             }.value
             message = result.failed == 0
-                ? "已将 \(result.removed) 项移入废纸篓"
-                : "已移入 \(result.removed) 项，\(result.failed) 项未处理"
+                ? String(localized: "Moved \(result.removed) items to the Trash")
+                : String(localized: "Moved \(result.removed) items to the Trash; \(result.failed) could not be moved")
             scan()
         }
     }

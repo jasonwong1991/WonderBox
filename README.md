@@ -111,6 +111,18 @@ open build/WonderBox.app
 
 The package builds `WonderBox` plus two helpers. `package_app.sh` produces a locally signed `build/WonderBox.app` with the generated icon and bundled helpers.
 
+## Languages
+
+WonderBox ships in English and Simplified Chinese and follows the system language; Settings › Language overrides it per app. Strings live in a single catalog, `Sources/WonderBox/Resources/Localizable.xcstrings`, with English as the source language.
+
+To add a language:
+
+1. Open `Localizable.xcstrings` (and `InfoPlist.xcstrings`) in Xcode's String Catalog editor, or edit the JSON directly, and add the new language code under each key's `localizations`.
+2. Add the code to `LANGUAGES` in `scripts/sync_localization.py` and to the `AppLanguage` enum in `Sources/WonderBox/Core/Localization.swift` so it appears in the picker.
+3. Run `scripts/sync_localization.py --check`; it fails on untranslated keys. `swift test` checks the same thing plus format-specifier consistency.
+
+`scripts/sync_localization.py` (no flags) asks the compiler for every localizable string in source and adds new keys to the catalog, so you never hand-maintain the key list.
+
 ## Permissions
 
 WonderBox asks for exactly what a feature needs, when you first use it:

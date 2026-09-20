@@ -11,9 +11,9 @@ struct CleanerView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 PageHeader(
-                    title: "空间清理",
+                    title: String(localized: "Cleanup"),
                     subtitle: model.cleanupScanMode.detail,
-                    actionTitle: "重新扫描",
+                    actionTitle: String(localized: "Rescan"),
                     actionSymbol: "arrow.clockwise",
                     isWorking: model.isScanningStorage,
                     action: { Task { await model.scanStorage() } }
@@ -47,7 +47,7 @@ struct CleanerView: View {
                     Button {
                         showConfirmation = true
                     } label: {
-                        Label(isCleaning ? "正在清理" : "清理所选项目", systemImage: "sparkles")
+                        Label(isCleaning ? "Cleaning…" : "Clean Selected", systemImage: "sparkles")
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color(hex: 0xE45E65))
@@ -62,22 +62,22 @@ struct CleanerView: View {
             Task { await model.scanStorage() }
         }
         .confirmationDialog(
-            "清理所选项目？",
+            "Clean the selected items?",
             isPresented: $showConfirmation,
             titleVisibility: .visible
         ) {
-            Button("清理 \(cleanupAmountText)", role: .destructive) {
+            Button("Clean \(cleanupAmountText)", role: .destructive) {
                 isCleaning = true
                 Task {
                     await model.cleanSelectedCategories()
                     isCleaning = false
                 }
             }
-            Button("取消", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text(model.cleanupScanMode == .deep
-                ? "应用残留、备份与下载文件会移入废纸篓；各类缓存会直接删除并按需重建。"
-                : "缓存会在应用再次运行时按需重建，安装包会移入废纸篓。")
+                ? String(localized: "App leftovers, backups and downloads go to the Trash; caches are deleted and rebuilt on demand.")
+                : String(localized: "Caches are rebuilt the next time an app runs; installers go to the Trash."))
         }
         .sheet(item: $detailKind) { kind in
             CleanupDetailSheet(kind: kind)
@@ -87,7 +87,7 @@ struct CleanerView: View {
 
     private var scanModeControl: some View {
         HStack(spacing: 16) {
-            Picker("扫描模式", selection: Binding(
+            Picker("Scan Mode", selection: Binding(
                 get: { model.cleanupScanMode },
                 set: { mode in Task { await model.setCleanupScanMode(mode) } }
             )) {
@@ -96,11 +96,11 @@ struct CleanerView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .frame(width: 260)
+            .fixedSize()
             .disabled(model.isScanningStorage || isCleaning)
 
             if model.cleanupScanMode == .deep {
-                Label("新增项目默认不选，清理后可从废纸篓恢复", systemImage: "shield.checkered")
+                Label("Extra categories start unselected and can be restored from the Trash", systemImage: "shield.checkered")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -120,7 +120,7 @@ struct CleanerView: View {
             .frame(width: 58, height: 58)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(model.isScanningStorage ? "正在分析" : "约可清理")
+                Text(model.isScanningStorage ? "Analyzing" : "Reclaimable")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Text(cleanupAmountText)
@@ -133,7 +133,7 @@ struct CleanerView: View {
                     .controlSize(.small)
             } else {
                 StatusPill(
-                    text: "\(model.cleanupCategories.filter(\.isSelected).count) 类已选",
+                    text: String(localized: "\(model.cleanupCategories.filter(\.isSelected).count) categories selected"),
                     color: Color(hex: 0x3178F6)
                 )
             }
@@ -145,13 +145,13 @@ struct CleanerView: View {
         if model.selectedCleanupSize > 0 {
             return AppFormatters.bytes(model.selectedCleanupSize)
         }
-        return "\(model.selectedCleanupItemCount) 项"
+        return String(localized: "\(model.selectedCleanupItemCount) items")
     }
 
     private var cleanupPolicyText: String {
         model.cleanupScanMode == .deep
-            ? "残留、备份、下载与安装包移入废纸篓；包管理与浏览器缓存直接删除"
-            : "安装包将移入废纸篓，其余选中项将直接清理"
+            ? String(localized: "Leftovers, backups, downloads and installers go to the Trash; package manager and browser caches are deleted")
+            : String(localized: "Installers go to the Trash; other selected items are deleted")
     }
 }
 
@@ -174,7 +174,7 @@ private struct CleanupCategoryRow: View {
                     Text(category.kind.title)
                         .font(.subheadline.weight(.semibold))
                     if category.kind.isDeepOnly {
-                        Text("深度")
+                        Text("Deep")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(category.kind.tint)
                             .padding(.horizontal, 5)
@@ -193,14 +193,14 @@ private struct CleanupCategoryRow: View {
                 .font(.system(.body, design: .rounded, weight: .semibold))
                 .monospacedDigit()
                 .frame(minWidth: 90, alignment: .trailing)
-                .help(category.unsizedItemCount > 0 ? "\(category.unsizedItemCount) 项体积过大未在限时内统计完，实际可能更多" : "")
+                .help(category.unsizedItemCount > 0 ? "\(category.unsizedItemCount) items were too large to size in time; the real total may be higher" : "")
             if !category.items.isEmpty {
                 Button(action: showDetails) {
                     Image(systemName: "chevron.right")
                 }
                 .buttonStyle(.plain)
-                .help("查看并选择项目")
-                .accessibilityLabel("查看\(category.kind.title)项目")
+                .help("View and select items")
+                .accessibilityLabel("View \(category.kind.title) items")
             }
             Toggle("", isOn: Binding(
                 get: { category.isSelected },
@@ -209,7 +209,7 @@ private struct CleanupCategoryRow: View {
             .toggleStyle(.checkbox)
             .labelsHidden()
             .disabled(category.accessMessage != nil)
-            .accessibilityLabel("选择\(category.kind.title)")
+            .accessibilityLabel("Select \(category.kind.title)")
         }
         .appPanel(padding: 13)
     }
@@ -223,9 +223,9 @@ private struct CleanupCategoryRow: View {
     private var itemCountText: String {
         let selected = category.items.filter(\.isSelected).count
         if !category.items.isEmpty, selected != category.itemCount {
-            return "已选 \(selected) / \(category.itemCount) 项"
+            return String(localized: "\(selected) of \(category.itemCount) items selected")
         }
-        return "\(category.itemCount) 项"
+        return String(localized: "\(category.itemCount) items")
     }
 }
 
@@ -244,14 +244,14 @@ private struct CleanupDetailSheet: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(kind.title)
                         .font(.title2.bold())
-                    Text("选择需要清理的具体项目")
+                    Text("Choose the items to clean")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("全选") { setAll(true) }
-                Button("取消全选") { setAll(false) }
-                Button("完成") { dismiss() }
+                Button("Select All") { setAll(true) }
+                Button("Deselect All") { setAll(false) }
+                Button("Done") { dismiss() }
                     .keyboardShortcut(.defaultAction)
             }
             .padding(20)
@@ -283,13 +283,13 @@ private struct CleanupDetailSheet: View {
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                                 if let modifiedAt = item.modifiedAt {
-                                    Text("修改于 \(AppFormatters.compactDate.string(from: modifiedAt))")
+                                    Text("Modified \(AppFormatters.compactDate.string(from: modifiedAt))")
                                         .font(.caption2)
                                         .foregroundStyle(.tertiary)
                                 }
                             }
                             Spacer()
-                            Text(item.isSizeEstimated ? AppFormatters.bytes(item.size) : "未统计")
+                            Text(item.isSizeEstimated ? AppFormatters.bytes(item.size) : String(localized: "Not sized"))
                                 .font(.system(.subheadline, design: .rounded, weight: .medium))
                                 .monospacedDigit()
                                 .foregroundStyle(item.isSizeEstimated ? .primary : .secondary)
@@ -300,7 +300,7 @@ private struct CleanupDetailSheet: View {
                                 Image(systemName: "folder")
                             }
                             .buttonStyle(.plain)
-                            .help("在 Finder 中显示")
+                            .help("Show in Finder")
                         }
                         .padding(.horizontal, 20)
                         .frame(minHeight: 58)

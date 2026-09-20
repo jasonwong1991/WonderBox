@@ -111,6 +111,18 @@ open build/WonderBox.app
 
 Swift Package 会构建 `WonderBox` 主程序与两个 helper。`package_app.sh` 生成本地签名的 `build/WonderBox.app`，内含生成的图标与打包好的 helper。
 
+## 多语言
+
+WonderBox 内置英文与简体中文，默认跟随系统语言；也可以在「设置 › 语言」中单独为本应用指定。所有文案集中在一个字符串目录 `Sources/WonderBox/Resources/Localizable.xcstrings`，源语言为英文。
+
+新增一种语言：
+
+1. 用 Xcode 的 String Catalog 编辑器打开 `Localizable.xcstrings`（以及 `InfoPlist.xcstrings`），或直接编辑 JSON，为每个 key 的 `localizations` 添加新的语言代码。
+2. 把语言代码加进 `scripts/sync_localization.py` 的 `LANGUAGES`，以及 `Sources/WonderBox/Core/Localization.swift` 中的 `AppLanguage` 枚举，这样它会出现在设置页的选择器里。
+3. 运行 `scripts/sync_localization.py --check`，存在未翻译的 key 时会失败；`swift test` 也会检查同样的内容以及格式占位符是否一致。
+
+不带参数运行 `scripts/sync_localization.py` 会让编译器列出源码中所有可本地化的字符串并把新 key 写入目录，不需要手工维护 key 列表。
+
 ## 权限
 
 WonderBox 只在你第一次用到某个功能时，索取那个功能刚好需要的权限：

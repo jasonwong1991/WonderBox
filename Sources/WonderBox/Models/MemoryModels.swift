@@ -31,9 +31,9 @@ enum MemoryPressure: Int, Equatable, Sendable {
 
     var title: String {
         switch self {
-        case .normal: "正常"
-        case .warning: "偏高"
-        case .critical: "严重"
+        case .normal: String(localized: "Normal")
+        case .warning: String(localized: "Elevated")
+        case .critical: String(localized: "Critical")
         }
     }
 
@@ -74,36 +74,41 @@ struct MemoryOptimizationReport: Equatable, Sendable {
     var cachedDelta: Int64 { delta(\.cached) }
 
     var summary: String {
-        var parts: [String] = []
-        if isNoticeableRelease(usedDelta) {
-            var detail: [String] = []
-            if isNoticeableRelease(appDelta) {
-                detail.append("App \(AppFormatters.signedMemory(appDelta))")
-            }
-            if isNoticeableRelease(compressedDelta) {
-                detail.append("已压缩 \(AppFormatters.signedMemory(compressedDelta))")
-            }
-            let suffix = detail.isEmpty ? "" : "（\(detail.joined(separator: " · "))）"
-            parts.append("已用内存 \(AppFormatters.signedMemory(usedDelta))\(suffix)")
-        }
-        if isNoticeableRelease(cachedDelta) {
-            parts.append("缓存文件 \(AppFormatters.signedMemory(cachedDelta))")
-        }
-
-        var text = parts.isEmpty
-            ? "当前没有可回收的缓存；已压缩内存由运行中的 App 持有，退出高占用 App 即可释放"
-            : "已释放 " + parts.joined(separator: " · ")
+        let released = releasedText
+        let outcome: String
         if !steps.contains(.pressure) {
-            text += "；未能向 App 发送内存压力通知"
+            outcome = String(localized: "Could not send the memory-pressure notification to apps")
         } else if applicationReleases.isEmpty {
-            text += "；各 App 未释放明显缓存"
+            outcome = String(localized: "No app released a noticeable amount of cache")
         } else {
             let named = applicationReleases.prefix(Self.namedApplicationLimit).map {
                 "\($0.name) \(AppFormatters.signedMemory(-Int64(clamping: $0.bytes)))"
             }
-            text += "；响应的 App：" + named.joined(separator: " · ")
+            outcome = String(localized: "Responding apps: \(named.joined(separator: " · "))")
         }
-        return text
+        return String(localized: "\(released); \(outcome)")
+    }
+
+    private var releasedText: String {
+        var parts: [String] = []
+        if isNoticeableRelease(usedDelta) {
+            var detail: [String] = []
+            if isNoticeableRelease(appDelta) {
+                detail.append(String(localized: "App \(AppFormatters.signedMemory(appDelta))"))
+            }
+            if isNoticeableRelease(compressedDelta) {
+                detail.append(String(localized: "Compressed \(AppFormatters.signedMemory(compressedDelta))"))
+            }
+            let suffix = detail.isEmpty ? "" : " (\(detail.joined(separator: " · ")))"
+            parts.append(String(localized: "Memory Used \(AppFormatters.signedMemory(usedDelta))\(suffix)"))
+        }
+        if isNoticeableRelease(cachedDelta) {
+            parts.append(String(localized: "Cached Files \(AppFormatters.signedMemory(cachedDelta))"))
+        }
+        guard !parts.isEmpty else {
+            return String(localized: "No reclaimable cache right now; compressed memory belongs to running apps, so quit heavy apps to free it")
+        }
+        return String(localized: "Released \(parts.joined(separator: " · "))")
     }
 
     static func releases(

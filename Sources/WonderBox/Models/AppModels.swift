@@ -15,14 +15,14 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .overview: "概览"
-        case .memory: "内存"
-        case .fan: "风扇"
-        case .awake: "保持唤醒"
-        case .applications: "应用卸载"
-        case .cleaner: "空间清理"
-        case .storage: "磁盘分析"
-        case .settings: "设置"
+        case .overview: String(localized: "Overview")
+        case .memory: String(localized: "Memory")
+        case .fan: String(localized: "Fan")
+        case .awake: String(localized: "Keep Awake")
+        case .applications: String(localized: "Uninstaller")
+        case .cleaner: String(localized: "Cleanup")
+        case .storage: String(localized: "Disk Analyzer")
+        case .settings: String(localized: "Settings")
         }
     }
 
@@ -93,11 +93,11 @@ enum FanMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .automatic: "自动"
-        case .quiet: "静音"
-        case .balanced: "均衡"
-        case .performance: "强劲"
-        case .custom: "自定"
+        case .automatic: String(localized: "Automatic")
+        case .quiet: String(localized: "Quiet")
+        case .balanced: String(localized: "Balanced")
+        case .performance: String(localized: "Performance")
+        case .custom: String(localized: "Custom")
         }
     }
 
@@ -122,10 +122,10 @@ enum AwakeDuration: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .thirtyMinutes: "30 分钟"
-        case .oneHour: "1 小时"
-        case .twoHours: "2 小时"
-        case .indefinitely: "持续"
+        case .thirtyMinutes: String(localized: "30 Minutes")
+        case .oneHour: String(localized: "1 Hour")
+        case .twoHours: String(localized: "2 Hours")
+        case .indefinitely: String(localized: "Indefinitely")
         }
     }
 
@@ -160,10 +160,10 @@ enum ApplicationSort: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .name: "名称"
-        case .size: "大小"
-        case .installedAt: "安装日期"
-        case .lastUsedAt: "最近使用"
+        case .name: String(localized: "Name")
+        case .size: String(localized: "Size")
+        case .installedAt: String(localized: "Install Date")
+        case .lastUsedAt: String(localized: "Last Used")
         }
     }
 
@@ -186,17 +186,17 @@ enum ApplicationFilter: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .all: "全部"
-        case .large: "大型"
-        case .stale: "久未使用"
+        case .all: String(localized: "All")
+        case .large: String(localized: "Large")
+        case .stale: String(localized: "Stale")
         }
     }
 
     var detail: String {
         switch self {
-        case .all: "显示全部应用"
-        case .large: "显示 1 GB 及以上的应用"
-        case .stale: "显示超过 180 天未使用或无使用记录的应用"
+        case .all: String(localized: "Show all applications")
+        case .large: String(localized: "Show applications of 1 GB or more")
+        case .stale: String(localized: "Show applications unused for 180 days or with no usage record")
         }
     }
 }
@@ -227,18 +227,18 @@ enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .caches: "应用缓存"
-        case .systemCaches: "系统缓存"
-        case .logs: "日志文件"
-        case .developer: "开发缓存"
-        case .installers: "安装包"
-        case .applicationLeftovers: "应用残留"
-        case .deviceBackups: "设备备份"
-        case .developerDeep: "开发深层缓存"
-        case .packageCaches: "包管理缓存"
-        case .browserCaches: "浏览器缓存"
-        case .partialDownloads: "未完成下载"
-        case .trash: "废纸篓"
+        case .caches: String(localized: "App Caches")
+        case .systemCaches: String(localized: "System Caches")
+        case .logs: String(localized: "Logs")
+        case .developer: String(localized: "Developer Caches")
+        case .installers: String(localized: "Installers")
+        case .applicationLeftovers: String(localized: "App Leftovers")
+        case .deviceBackups: String(localized: "Device Backups")
+        case .developerDeep: String(localized: "Deep Developer Caches")
+        case .packageCaches: String(localized: "Package Manager Caches")
+        case .browserCaches: String(localized: "Browser Caches")
+        case .partialDownloads: String(localized: "Partial Downloads")
+        case .trash: String(localized: "Trash")
         }
     }
 
@@ -278,18 +278,18 @@ enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
 
     var detail: String {
         switch self {
-        case .caches: "应用与沙盒容器中可重建的缓存数据"
-        case .systemCaches: "共享系统缓存，需要管理员授权"
-        case .logs: "应用运行与诊断日志"
+        case .caches: String(localized: "Rebuildable cache data from apps and sandboxed containers")
+        case .systemCaches: String(localized: "Shared system caches; requires administrator authorization")
+        case .logs: String(localized: "Application and diagnostic logs")
         case .developer: "Xcode DerivedData"
-        case .installers: "下载超过 7 天的安装文件"
-        case .applicationLeftovers: "已卸载应用遗留的数据"
-        case .deviceBackups: "本机保存的 iPhone 与 iPad 备份"
-        case .developerDeep: "模拟器缓存、设备支持文件与文档缓存"
-        case .packageCaches: "npm、pnpm、uv、Go、Cargo 等下载缓存，安装时自动重建"
-        case .browserCaches: "Chromium 浏览器与 Electron 应用的网页缓存，跳过运行中的应用"
-        case .partialDownloads: "超过 7 天的中断下载"
-        case .trash: "Finder 废纸篓中的项目"
+        case .installers: String(localized: "Installer files downloaded more than 7 days ago")
+        case .applicationLeftovers: String(localized: "Data left behind by uninstalled apps")
+        case .deviceBackups: String(localized: "iPhone and iPad backups stored on this Mac")
+        case .developerDeep: String(localized: "Simulator caches, device support files and documentation caches")
+        case .packageCaches: String(localized: "Download caches for npm, pnpm, uv, Go, Cargo and more; rebuilt on the next install")
+        case .browserCaches: String(localized: "Web caches of Chromium browsers and Electron apps; running apps are skipped")
+        case .partialDownloads: String(localized: "Interrupted downloads older than 7 days")
+        case .trash: String(localized: "Items in the Finder Trash")
         }
     }
 
@@ -327,15 +327,15 @@ enum CleanupScanMode: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .standard: "标准扫描"
-        case .deep: "深度清理"
+        case .standard: String(localized: "Standard Scan")
+        case .deep: String(localized: "Deep Clean")
         }
     }
 
     var detail: String {
         switch self {
-        case .standard: "快速检查常见缓存、日志和安装文件"
-        case .deep: "额外检查应用残留、设备备份、开发数据、包管理与浏览器缓存"
+        case .standard: String(localized: "Quick check of common caches, logs and installers")
+        case .deep: String(localized: "Also checks app leftovers, device backups, developer data, package manager and browser caches")
         }
     }
 }
@@ -402,9 +402,9 @@ enum AppAppearance: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .system: "跟随系统"
-        case .light: "浅色"
-        case .dark: "深色"
+        case .system: String(localized: "System")
+        case .light: String(localized: "Light")
+        case .dark: String(localized: "Dark")
         }
     }
 
@@ -427,10 +427,10 @@ enum AccentChoice: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .ocean: "海蓝"
-        case .mint: "薄荷"
-        case .coral: "珊瑚"
-        case .violet: "鸢尾"
+        case .ocean: String(localized: "Ocean")
+        case .mint: String(localized: "Mint")
+        case .coral: String(localized: "Coral")
+        case .violet: String(localized: "Violet")
         }
     }
 

@@ -238,13 +238,13 @@ static int set_fan_mode_direct(io_connect_t connection, int index, int manual, i
     char key[5];
     SMCValue mode;
     if (read_fan_mode(connection, index, key, &mode) != 0) {
-        set_last_error("找不到风扇 %d 的模式键", index + 1);
+        set_last_error("No mode key found for fan %d", index + 1);
         return -1;
     }
     mode.bytes[0] = manual ? 1 : 0;
     kern_return_t result = smc_write_with_retry(connection, key, &mode, attempts, 100000);
     if (result != kIOReturnSuccess) {
-        set_last_error("写入 %s 失败 (0x%08x)", key, result);
+        set_last_error("Failed to write %s (0x%08x)", key, result);
         return -1;
     }
     return 0;
@@ -255,7 +255,7 @@ static int unlock_apple_silicon_fan(io_connect_t connection, int index) {
     char mode_key[5];
     SMCValue mode;
     if (read_fan_mode(connection, index, mode_key, &mode) != 0) {
-        set_last_error("找不到风扇 %d 的 Apple Silicon 模式键", index + 1);
+        set_last_error("No Apple Silicon mode key found for fan %d", index + 1);
         return -1;
     }
     if (mode.bytes[0] == 1) {
@@ -270,7 +270,7 @@ static int unlock_apple_silicon_fan(io_connect_t connection, int index) {
     SMCValue test_mode;
     kern_return_t read_result = smc_read(connection, "Ftst", &test_mode);
     if (read_result != kIOReturnSuccess || test_mode.size == 0) {
-        set_last_error("%s 受系统保护，且 Ftst 解锁键不可用 (0x%08x)", mode_key, read_result);
+        set_last_error("%s is protected by the system and the Ftst unlock key is unavailable (0x%08x)", mode_key, read_result);
         return -1;
     }
 
@@ -278,7 +278,7 @@ static int unlock_apple_silicon_fan(io_connect_t connection, int index) {
         test_mode.bytes[0] = 1;
         kern_return_t unlock_result = smc_write_with_retry(connection, "Ftst", &test_mode, 100, 50000);
         if (unlock_result != kIOReturnSuccess) {
-            set_last_error("写入 Ftst 解锁键失败 (0x%08x)", unlock_result);
+            set_last_error("Failed to write the Ftst unlock key (0x%08x)", unlock_result);
             return -1;
         }
         // thermalmonitord needs a short handoff window after Ftst is enabled.
@@ -288,7 +288,7 @@ static int unlock_apple_silicon_fan(io_connect_t connection, int index) {
     mode.bytes[0] = 1;
     kern_return_t mode_result = smc_write_with_retry(connection, mode_key, &mode, 300, 100000);
     if (mode_result != kIOReturnSuccess) {
-        set_last_error("Ftst 已开启，但写入 %s 仍失败 (0x%08x)", mode_key, mode_result);
+        set_last_error("Ftst is enabled but writing %s still failed (0x%08x)", mode_key, mode_result);
         return -1;
     }
     return 0;
@@ -318,7 +318,7 @@ static int reset_apple_silicon_fans(io_connect_t connection, int count) {
             test_mode.bytes[0] = 0;
             kern_return_t result = smc_write_with_retry(connection, "Ftst", &test_mode, 20, 100000);
             if (result != kIOReturnSuccess) {
-                set_last_error("恢复 Ftst 自动控制失败 (0x%08x)", result);
+                set_last_error("Failed to restore Ftst automatic control (0x%08x)", result);
                 return -1;
             }
         }
@@ -458,12 +458,12 @@ int wc_smc_set_all_fans_auto(void) {
     clear_last_error();
     io_connect_t connection = IO_OBJECT_NULL;
     if (smc_open(&connection) != kIOReturnSuccess) {
-        set_last_error("无法连接 AppleSMC");
+        set_last_error("Cannot connect to AppleSMC");
         return -2;
     }
     int count = fan_count_with_connection(connection);
     if (count <= 0) {
-        set_last_error("没有检测到可控制的风扇");
+        set_last_error("No controllable fans detected");
         IOServiceClose(connection);
         return -3;
     }
@@ -485,12 +485,12 @@ int wc_smc_set_all_fans_rpm(double rpm) {
     clear_last_error();
     io_connect_t connection = IO_OBJECT_NULL;
     if (smc_open(&connection) != kIOReturnSuccess) {
-        set_last_error("无法连接 AppleSMC");
+        set_last_error("Cannot connect to AppleSMC");
         return -2;
     }
     int count = fan_count_with_connection(connection);
     if (count <= 0) {
-        set_last_error("没有检测到可控制的风扇");
+        set_last_error("No controllable fans detected");
         IOServiceClose(connection);
         return -3;
     }
@@ -512,12 +512,12 @@ int wc_smc_set_all_fans_rpm(double rpm) {
         SMCValue target;
         kern_return_t read_result = smc_read(connection, key, &target);
         if (read_result != kIOReturnSuccess) {
-            set_last_error("读取 %s 失败 (0x%08x)", key, read_result);
+            set_last_error("Failed to read %s (0x%08x)", key, read_result);
             result = -3;
             break;
         }
         if (smc_encode_number(&target, rpm) != 0) {
-            set_last_error("%s 使用了未知的数值格式", key);
+            set_last_error("%s uses an unknown value format", key);
             result = -3;
             break;
         }
@@ -527,7 +527,7 @@ int wc_smc_set_all_fans_rpm(double rpm) {
         kern_return_t write_result = smc_write(connection, key, &target);
 #endif
         if (write_result != kIOReturnSuccess) {
-            set_last_error("写入 %s 失败 (0x%08x)", key, write_result);
+            set_last_error("Failed to write %s (0x%08x)", key, write_result);
             result = -3;
             break;
         }

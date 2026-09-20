@@ -56,7 +56,7 @@ final class MemoryOptimizer: ObservableObject {
         case let .failure(text):
             message = text
         case .unavailable:
-            message = "后台增强服务连接已中断"
+            message = String(localized: "Lost connection to the background service")
         }
         isOptimizing = false
         await refreshApplications()

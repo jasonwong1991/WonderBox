@@ -15,23 +15,23 @@ struct FanView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                PageHeader(title: "风扇", subtitle: "Apple SMC · 按需控制")
+                PageHeader(title: String(localized: "Fan"), subtitle: String(localized: "Apple SMC · On-demand control"))
 
                 HStack {
                     StatusPill(
-                        text: model.fans.isEmpty ? "当前机型不支持" : "已连接 \(model.fans.count) 个风扇",
+                        text: model.fans.isEmpty ? String(localized: "Not supported on this Mac") : String(localized: "\(model.fans.count) fans connected"),
                         color: model.fans.isEmpty ? .secondary : .healthy,
                         symbol: model.fans.isEmpty ? "fan.slash" : "fan.fill"
                     )
                     Spacer()
-                    StatusPill(text: "Direct 增强模块", color: Color(hex: 0x7A67D8), symbol: "lock.shield")
+                    StatusPill(text: String(localized: "Direct build module"), color: Color(hex: 0x7A67D8), symbol: "lock.shield")
                 }
 
                 if model.fans.isEmpty {
                     EmptyContentView(
                         symbol: "fan.slash",
-                        title: "未读取到风扇传感器",
-                        detail: "无风扇机型或当前系统未开放 AppleSMC 通道"
+                        title: String(localized: "No Fan Sensors Found"),
+                        detail: String(localized: "Fanless Mac, or AppleSMC is not exposed on this system")
                     )
                     .frame(minHeight: 210)
                     .appPanel()
@@ -45,15 +45,15 @@ struct FanView: View {
 
                 VStack(alignment: .leading, spacing: 18) {
                     HStack {
-                        Text("控制模式")
+                        Text("Control Mode")
                             .font(.headline)
                         Spacer()
-                        Text("首次启用时授权一次")
+                        Text("Authorize once on first use")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
 
-                    Picker("风扇模式", selection: $selectedMode) {
+                    Picker("Fan Mode", selection: $selectedMode) {
                         ForEach(FanMode.allCases) { mode in
                             Text(mode.title).tag(mode)
                         }
@@ -64,7 +64,7 @@ struct FanView: View {
                     if selectedMode == .custom {
                         VStack(spacing: 8) {
                             HStack {
-                                Text("目标转速")
+                                Text("Target Speed")
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 Text("\(Int(customRPM.rounded())) RPM")
@@ -89,7 +89,7 @@ struct FanView: View {
                                 isApplying = false
                             }
                         } label: {
-                            Label(isApplying ? "正在应用" : "应用模式", systemImage: "checkmark.circle")
+                            Label(isApplying ? "Applying…" : "Apply Mode", systemImage: "checkmark.circle")
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(model.fans.isEmpty || isApplying)

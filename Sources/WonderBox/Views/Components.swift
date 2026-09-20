@@ -101,8 +101,8 @@ struct MetricCard: View {
                 if history.count > 1 {
                     Chart(Array(history.enumerated()), id: \.offset) { point in
                         LineMark(
-                            x: .value("时间", point.offset),
-                            y: .value("数值", point.element)
+                            x: .value("Time", point.offset),
+                            y: .value("Value", point.element)
                         )
                         .interpolationMethod(.catmullRom)
                         .foregroundStyle(tint)
@@ -176,8 +176,8 @@ struct InlineMessage: View {
                     Image(systemName: "xmark")
                 }
                 .buttonStyle(.plain)
-                .help("关闭")
-                .accessibilityLabel("关闭消息")
+                .help("Close")
+                .accessibilityLabel("Dismiss message")
             }
         }
         .padding(.horizontal, 12)

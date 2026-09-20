@@ -13,11 +13,8 @@ final class SleepPreventer: ObservableObject {
     private var countdownTask: Task<Void, Never>?
 
     var remainingText: String {
-        guard let remaining else { return "持续开启" }
-        let minutes = max(0, Int(remaining) / 60)
-        let hours = minutes / 60
-        if hours > 0 { return "剩余 \(hours) 小时 \(minutes % 60) 分" }
-        return "剩余 \(minutes) 分钟"
+        guard let remaining else { return String(localized: "On indefinitely") }
+        return String(localized: "\(AppFormatters.duration(remaining)) left")
     }
 
     func enable(duration: TimeInterval?, keepDisplayAwake: Bool) {
@@ -25,7 +22,7 @@ final class SleepPreventer: ObservableObject {
         lastError = nil
         self.keepDisplayAwake = keepDisplayAwake
 
-        let reason = "WonderBox 保持 Mac 唤醒" as CFString
+        let reason = "WonderBox is keeping the Mac awake" as CFString
         var systemID: IOPMAssertionID = 0
         let systemResult = IOPMAssertionCreateWithName(
             kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
@@ -34,7 +31,7 @@ final class SleepPreventer: ObservableObject {
             &systemID
         )
         guard systemResult == kIOReturnSuccess else {
-            lastError = "系统拒绝了唤醒请求（\(systemResult)）"
+            lastError = String(localized: "The system rejected the wake request (\(systemResult))")
             return
         }
         assertionIDs.append(systemID)

@@ -14,7 +14,7 @@ enum AdministratorShell {
         var error: NSDictionary?
         let output = NSAppleScript(source: source)?.executeAndReturnError(&error)
         if let error {
-            let message = error[NSAppleScript.errorMessage] as? String ?? "授权已取消"
+            let message = error[NSAppleScript.errorMessage] as? String ?? String(localized: "Authorization cancelled")
             return .failure(Failure(message: message, isCancelled: message == "User canceled."))
         }
         return .success(output?.stringValue ?? "")

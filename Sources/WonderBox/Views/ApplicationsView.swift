@@ -8,9 +8,9 @@ struct ApplicationsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             PageHeader(
-                title: "应用卸载",
-                subtitle: "应用与关联文件",
-                actionTitle: "选择应用",
+                title: String(localized: "Uninstaller"),
+                subtitle: String(localized: "Applications and related files"),
+                actionTitle: String(localized: "Choose App"),
                 actionSymbol: "plus",
                 isWorking: model.isScanningApplications,
                 action: chooseApplication
@@ -40,7 +40,7 @@ struct ApplicationsView: View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
-                TextField("搜索应用", text: $model.applicationSearch)
+                TextField("Search apps", text: $model.applicationSearch)
                     .textFieldStyle(.plain)
                 if !model.applicationSearch.isEmpty {
                     Button {
@@ -50,7 +50,7 @@ struct ApplicationsView: View {
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .help("清除搜索")
+                    .help("Clear search")
                 }
             }
             .padding(.horizontal, 12)
@@ -61,7 +61,7 @@ struct ApplicationsView: View {
             .padding(.top, 12)
             .padding(.bottom, 9)
 
-            Picker("筛选", selection: $model.applicationFilter) {
+            Picker("Filter", selection: $model.applicationFilter) {
                 ForEach(ApplicationFilter.allCases) { filter in
                     Text(filter.title).tag(filter)
                 }
@@ -72,7 +72,7 @@ struct ApplicationsView: View {
             .padding(.horizontal, 12)
 
             HStack(spacing: 8) {
-                Picker("排序", selection: $model.applicationSort) {
+                Picker("Sort", selection: $model.applicationSort) {
                     ForEach(ApplicationSort.allCases) { sort in
                         Label(sort.title, systemImage: sort.symbol).tag(sort)
                     }
@@ -87,8 +87,8 @@ struct ApplicationsView: View {
                         .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.borderless)
-                .help(model.applicationSortAscending ? "当前升序，点按切换降序" : "当前降序，点按切换升序")
-                .accessibilityLabel(model.applicationSortAscending ? "切换为降序" : "切换为升序")
+                .help(model.applicationSortAscending ? "Ascending; click to sort descending" : "Descending; click to sort ascending")
+                .accessibilityLabel(model.applicationSortAscending ? "Sort descending" : "Sort ascending")
 
                 Spacer()
 
@@ -102,14 +102,14 @@ struct ApplicationsView: View {
             Divider()
 
             if model.isScanningApplications && model.applications.isEmpty {
-                ProgressView("正在扫描应用…")
+                ProgressView("Scanning applications…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if model.filteredApplications.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "line.3.horizontal.decrease.circle")
                         .font(.system(size: 28))
                         .foregroundStyle(.tertiary)
-                    Text(model.applications.isEmpty ? "未发现应用" : "没有符合条件的应用")
+                    Text(model.applications.isEmpty ? "No Applications Found" : "No Matching Applications")
                         .font(.subheadline.weight(.medium))
                     Text(model.applicationFilter.detail)
                         .font(.caption)
@@ -138,7 +138,7 @@ struct ApplicationsView: View {
             Divider()
 
             HStack {
-                Text("\(model.filteredApplications.count) 个 · \(AppFormatters.bytes(model.filteredApplicationSize))")
+                Text("\(model.filteredApplications.count) apps · \(AppFormatters.bytes(model.filteredApplicationSize))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -148,7 +148,7 @@ struct ApplicationsView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.plain)
-                .help("重新扫描")
+                .help("Rescan")
                 .disabled(model.isScanningApplications)
             }
             .padding(12)
@@ -162,16 +162,16 @@ struct ApplicationsView: View {
         } else {
             EmptyContentView(
                 symbol: "shippingbox",
-                title: "选择一个应用",
-                detail: "将显示应用本体和可移除的关联文件"
+                title: String(localized: "Select an Application"),
+                detail: String(localized: "The app bundle and its removable related files will appear here")
             )
         }
     }
 
     private func chooseApplication() {
         let panel = NSOpenPanel()
-        panel.title = "选择要卸载的应用"
-        panel.prompt = "选择"
+        panel.title = String(localized: "Choose an application to uninstall")
+        panel.prompt = String(localized: "Choose")
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
@@ -218,7 +218,7 @@ private struct ApplicationRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(application.name)，\(AppFormatters.bytes(application.size))")
+        .accessibilityLabel("\(application.name), \(AppFormatters.bytes(application.size))")
     }
 
     private var secondaryText: String {
@@ -232,9 +232,9 @@ private struct ApplicationRow: View {
                 .compactMap { $0 }
                 .joined(separator: " · ")
         case .installedAt:
-            return "安装 \(application.installedAt.map(AppFormatters.compactDate.string) ?? "未知") · \(AppFormatters.bytes(application.size))"
+            return String(localized: "Installed \(application.installedAt.map(AppFormatters.compactDate.string) ?? String(localized: "Unknown")) · \(AppFormatters.bytes(application.size))")
         case .lastUsedAt:
-            return "使用 \(application.lastUsedAt.map(AppFormatters.compactDate.string) ?? "无记录") · \(AppFormatters.bytes(application.size))"
+            return String(localized: "Used \(application.lastUsedAt.map(AppFormatters.compactDate.string) ?? String(localized: "No record")) · \(AppFormatters.bytes(application.size))")
         }
     }
 }
@@ -274,8 +274,8 @@ private struct ApplicationDetail: View {
                             .frame(width: 24, height: 24)
                     }
                     .buttonStyle(.borderless)
-                    .help("打开应用")
-                    .accessibilityLabel("打开\(application.name)")
+                    .help("Open app")
+                    .accessibilityLabel("Open \(application.name)")
 
                     Button {
                         NSWorkspace.shared.activateFileViewerSelecting([application.url])
@@ -284,8 +284,8 @@ private struct ApplicationDetail: View {
                             .frame(width: 24, height: 24)
                     }
                     .buttonStyle(.borderless)
-                    .help("在 Finder 中显示")
-                    .accessibilityLabel("在 Finder 中显示\(application.name)")
+                    .help("Show in Finder")
+                    .accessibilityLabel("Show \(application.name) in Finder")
                 }
             }
             .padding(.horizontal, 22)
@@ -293,16 +293,16 @@ private struct ApplicationDetail: View {
             .padding(.bottom, 14)
 
             HStack(spacing: 0) {
-                ApplicationMetadata(title: "应用大小", value: AppFormatters.bytes(application.size))
+                ApplicationMetadata(title: String(localized: "App Size"), value: AppFormatters.bytes(application.size))
                 Divider().frame(height: 28)
                 ApplicationMetadata(
-                    title: "安装日期",
-                    value: application.installedAt.map(AppFormatters.compactDate.string) ?? "未知"
+                    title: String(localized: "Install Date"),
+                    value: application.installedAt.map(AppFormatters.compactDate.string) ?? String(localized: "Unknown")
                 )
                 Divider().frame(height: 28)
                 ApplicationMetadata(
-                    title: "最近使用",
-                    value: application.lastUsedAt.map(AppFormatters.compactDate.string) ?? "无记录"
+                    title: String(localized: "Last Used"),
+                    value: application.lastUsedAt.map(AppFormatters.compactDate.string) ?? String(localized: "No record")
                 )
             }
             .padding(.horizontal, 22)
@@ -312,16 +312,16 @@ private struct ApplicationDetail: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("关联文件")
+                    Text("Related Files")
                         .font(.headline)
                     Spacer()
                     if !model.relatedFiles.isEmpty {
-                        Button("全选") { model.setAllRelatedFiles(true) }
+                        Button("Select All") { model.setAllRelatedFiles(true) }
                             .buttonStyle(.borderless)
-                        Button("取消全选") { model.setAllRelatedFiles(false) }
+                        Button("Deselect All") { model.setAllRelatedFiles(false) }
                             .buttonStyle(.borderless)
                     }
-                    Text("\(model.relatedFiles.count) 项 · \(AppFormatters.bytes(selectedRelatedSize))")
+                    Text("\(model.relatedFiles.count) items · \(AppFormatters.bytes(selectedRelatedSize))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -329,11 +329,11 @@ private struct ApplicationDetail: View {
                 .padding(.top, 18)
 
                 if model.isScanningRelatedFiles {
-                    ProgressView("正在查找关联文件…")
+                    ProgressView("Finding related files…")
                         .controlSize(.small)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if model.relatedFiles.isEmpty {
-                    Text("未发现关联文件")
+                    Text("No related files found")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -367,7 +367,7 @@ private struct ApplicationDetail: View {
                                         Image(systemName: "folder")
                                     }
                                     .buttonStyle(.borderless)
-                                    .help("在 Finder 中显示")
+                                    .help("Show in Finder")
                                 }
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 7)
@@ -382,7 +382,7 @@ private struct ApplicationDetail: View {
 
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("将移入废纸篓")
+                    Text("Will move to Trash")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(AppFormatters.bytes(application.size + selectedRelatedSize))
@@ -392,7 +392,7 @@ private struct ApplicationDetail: View {
                 Button(role: .destructive) {
                     showConfirmation = true
                 } label: {
-                    Label(isRemoving ? "正在卸载" : "卸载应用", systemImage: "trash")
+                    Label(isRemoving ? "Uninstalling…" : "Uninstall", systemImage: "trash")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.critical)
@@ -401,20 +401,20 @@ private struct ApplicationDetail: View {
             .padding(18)
         }
         .confirmationDialog(
-            "卸载 \(application.name)？",
+            "Uninstall \(application.name)?",
             isPresented: $showConfirmation,
             titleVisibility: .visible
         ) {
-            Button("移入废纸篓", role: .destructive) {
+            Button("Move to Trash", role: .destructive) {
                 isRemoving = true
                 Task {
                     await model.uninstallSelectedApplication()
                     isRemoving = false
                 }
             }
-            Button("取消", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("应用本体与已勾选的关联文件将移入废纸篓。")
+            Text("The app and the selected related files will be moved to the Trash.")
         }
     }
 }

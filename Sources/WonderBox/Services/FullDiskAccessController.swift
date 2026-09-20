@@ -9,9 +9,9 @@ enum FullDiskAccessStatus: Equatable, Sendable {
 
     var title: String {
         switch self {
-        case .authorized: "已授权"
-        case .denied: "未授权"
-        case .unavailable: "待检查"
+        case .authorized: String(localized: "Authorized")
+        case .denied: String(localized: "Not Authorized")
+        case .unavailable: String(localized: "Unchecked")
         }
     }
 }

@@ -40,7 +40,7 @@ enum PrivilegedService {
         }
         return PrivilegedServiceResult(
             succeeded: ready,
-            message: ready ? "后台增强服务已就绪" : "后台增强服务未能启动"
+            message: ready ? String(localized: "Background service is ready") : String(localized: "Background service failed to start")
         )
     }
 
@@ -79,13 +79,14 @@ enum PrivilegedService {
         guard count > 0 else { return .unavailable }
         let response = String(decoding: bytes.prefix(count), as: UTF8.self)
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        // The daemon speaks English; its messages are catalog keys on this side.
         if response.hasPrefix("ok ") {
-            return .success(String(response.dropFirst(3)))
+            return .success(L10n.message(String(response.dropFirst(3))))
         }
         if response.hasPrefix("error ") {
-            return .failure(String(response.dropFirst(6)))
+            return .failure(L10n.message(String(response.dropFirst(6))))
         }
-        return .failure("后台增强服务返回了无效响应")
+        return .failure(String(localized: "Background service returned an invalid response"))
     }
 
     @MainActor
@@ -93,7 +94,7 @@ enum PrivilegedService {
         guard let helper = HelperLocator.executable(named: helperName),
               let launchDaemon = HelperLocator.resource(named: "\(helperLabel).plist")
         else {
-            return PrivilegedServiceResult(succeeded: false, message: "后台增强服务文件不完整")
+            return PrivilegedServiceResult(succeeded: false, message: String(localized: "Background service files are missing from the app bundle"))
         }
         let installedHelper = "/Library/PrivilegedHelperTools/\(helperLabel)"
         let installedPlist = "/Library/LaunchDaemons/\(helperLabel).plist"
@@ -108,11 +109,11 @@ enum PrivilegedService {
         ]
         switch AdministratorShell.run(commands.joined(separator: "; ")) {
         case .success:
-            return PrivilegedServiceResult(succeeded: true, message: "后台增强服务已安装")
+            return PrivilegedServiceResult(succeeded: true, message: String(localized: "Background service installed"))
         case let .failure(failure):
             return PrivilegedServiceResult(
                 succeeded: false,
-                message: failure.isCancelled ? "已取消管理员授权" : failure.message
+                message: failure.isCancelled ? String(localized: "Administrator authorization cancelled") : failure.message
             )
         }
     }

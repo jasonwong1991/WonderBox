@@ -27,11 +27,11 @@ private struct MemoryContent: View {
 
     private var segments: [MemorySegment] {
         [
-            MemorySegment(title: "App 内存", value: memory.app, color: AppSection.memory.tint),
-            MemorySegment(title: "联动内存", value: memory.wired, color: Color(hex: 0xE1A127)),
-            MemorySegment(title: "已压缩", value: memory.compressed, color: Color(hex: 0x7A67D8)),
-            MemorySegment(title: "缓存文件", value: memory.cached, color: Color(hex: 0x3178F6)),
-            MemorySegment(title: "可用", value: memory.available, color: Color.secondary.opacity(0.35))
+            MemorySegment(title: String(localized: "App Memory"), value: memory.app, color: AppSection.memory.tint),
+            MemorySegment(title: String(localized: "Wired"), value: memory.wired, color: Color(hex: 0xE1A127)),
+            MemorySegment(title: String(localized: "Compressed"), value: memory.compressed, color: Color(hex: 0x7A67D8)),
+            MemorySegment(title: String(localized: "Cached Files"), value: memory.cached, color: Color(hex: 0x3178F6)),
+            MemorySegment(title: String(localized: "Available"), value: memory.available, color: Color.secondary.opacity(0.35))
         ]
     }
 
@@ -39,9 +39,9 @@ private struct MemoryContent: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 PageHeader(
-                    title: "内存",
-                    subtitle: "已用 \(AppFormatters.memory(memory.used)) / \(AppFormatters.memory(memory.total))",
-                    actionTitle: optimizer.isOptimizing ? "正在优化" : "优化内存",
+                    title: String(localized: "Memory"),
+                    subtitle: String(localized: "\(AppFormatters.memory(memory.used)) of \(AppFormatters.memory(memory.total)) used"),
+                    actionTitle: optimizer.isOptimizing ? String(localized: "Optimizing…") : String(localized: "Optimize Memory"),
                     actionSymbol: "wand.and.stars",
                     isWorking: optimizer.isOptimizing,
                     action: { Task { await model.optimizeMemory() } }
@@ -59,28 +59,28 @@ private struct MemoryContent: View {
         }
         .task { await optimizer.refreshApplications() }
         .confirmationDialog(
-            "强制退出？",
+            "Force Quit?",
             isPresented: $showForceQuitConfirmation,
             titleVisibility: .visible,
             presenting: forceQuitTarget
         ) { target in
-            Button("强制退出 \(target.name)", role: .destructive) {
+            Button("Force Quit \(target.name)", role: .destructive) {
                 Task { await optimizer.quit(target, force: true) }
             }
-            Button("取消", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: { target in
-            Text("\(target.name) 中未保存的更改将会丢失。")
+            Text("Unsaved changes in \(target.name) will be lost.")
         }
     }
 
     private var breakdownPanel: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("内存构成")
+                Text("Memory Breakdown")
                     .font(.headline)
                 Spacer()
                 StatusPill(
-                    text: "内存压力 \(memory.pressure.title)",
+                    text: String(localized: "Pressure: \(memory.pressure.title)"),
                     color: memory.pressure.color,
                     symbol: "gauge.with.dots.needle.33percent"
                 )
@@ -120,10 +120,10 @@ private struct MemoryContent: View {
             Divider()
 
             HStack(alignment: .firstTextBaseline) {
-                Label("交换空间已用 \(AppFormatters.memory(memory.swapUsed))", systemImage: "arrow.left.arrow.right.circle")
+                Label("Swap used: \(AppFormatters.memory(memory.swapUsed))", systemImage: "arrow.left.arrow.right.circle")
                     .font(.subheadline)
                 Spacer()
-                Text("优化时会通知所有 App 释放缓存，浏览器后台标签页可能需要重新加载")
+                Text("Optimizing asks every app to release its caches; background browser tabs may reload")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -134,10 +134,10 @@ private struct MemoryContent: View {
     private var applicationsPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("内存占用排行")
+                Text("Top Memory Users")
                     .font(.headline)
                 Spacer()
-                Text("按物理占用统计，包含子进程与已压缩页面")
+                Text("By physical footprint, including helper processes and compressed pages")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Button {
@@ -146,21 +146,21 @@ private struct MemoryContent: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.plain)
-                .help("重新统计")
-                .accessibilityLabel("重新统计内存占用")
+                .help("Recount")
+                .accessibilityLabel("Recount memory usage")
                 .disabled(optimizer.isRefreshingApplications)
             }
 
             if optimizer.applications.isEmpty {
                 if optimizer.isRefreshingApplications {
-                    ProgressView("正在统计进程内存…")
+                    ProgressView("Measuring process memory…")
                         .controlSize(.small)
                         .frame(maxWidth: .infinity, minHeight: 120)
                 } else {
                     EmptyContentView(
                         symbol: "memorychip",
-                        title: "无法读取进程信息",
-                        detail: "沙盒环境不允许读取其他进程的内存占用"
+                        title: String(localized: "Cannot Read Process Information"),
+                        detail: String(localized: "The sandbox does not allow reading other processes’ memory usage")
                     )
                     .frame(minHeight: 120)
                 }
@@ -175,7 +175,7 @@ private struct MemoryContent: View {
                 }
             }
 
-            Text("已压缩内存是运行中 App 的活动数据，只有 App 释放缓存或退出时才会减少。退出上方的高占用 App 会直接释放其已压缩与交换部分。")
+            Text("Compressed memory is live data owned by running apps; it only shrinks when they release caches or quit. Quitting a heavy app above immediately frees its compressed and swapped pages.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -216,31 +216,31 @@ private struct MemoryContent: View {
 
             if usage.isQuittable {
                 Menu {
-                    Button("强制退出…", role: .destructive) {
+                    Button("Force Quit…", role: .destructive) {
                         forceQuitTarget = usage
                         showForceQuitConfirmation = true
                     }
                 } label: {
-                    Text("退出")
+                    Text("Quit")
                 } primaryAction: {
                     Task { await optimizer.quit(usage, force: false) }
                 }
                 .fixedSize()
                 .frame(width: 88, alignment: .trailing)
-                .help("退出 \(usage.name)（\(AppFormatters.percent(share)) 物理内存）")
+                .help("Quit \(usage.name) (\(AppFormatters.percent(share)) of physical memory)")
             } else {
                 Color.clear.frame(width: 88)
             }
         }
         .padding(.vertical, 8)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(usage.name)，\(AppFormatters.memory(usage.footprint))")
+        .accessibilityLabel("\(usage.name), \(AppFormatters.memory(usage.footprint))")
     }
 
     private func rowDetail(_ usage: ApplicationMemoryUsage) -> String {
-        var parts = ["\(usage.processCount) 个进程"]
+        var parts = [String(localized: "\(usage.processCount) processes")]
         if usage.nonResident >= MemoryOptimizationReport.noticeableChange {
-            parts.append("约 \(AppFormatters.memory(usage.nonResident)) 已压缩或交换")
+            parts.append(String(localized: "about \(AppFormatters.memory(usage.nonResident)) compressed or swapped"))
         }
         return parts.joined(separator: " · ")
     }
