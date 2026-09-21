@@ -7,6 +7,7 @@ import SwiftUI
 @MainActor
 final class DockPresenceController: NSObject, NSApplicationDelegate, ObservableObject {
     private var observers: [NSObjectProtocol] = []
+    private var hasMainWindow = false
 
     // Same keys and defaults as the `@AppStorage` properties in the App and Settings; writes propagate
     // back to those bindings through UserDefaults.
@@ -23,6 +24,30 @@ final class DockPresenceController: NSObject, NSApplicationDelegate, ObservableO
     /// SwiftUI quits a single-`Window` app as soon as that window closes; `windowDidClose` decides instead.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
+    /// SwiftUI does not always present a `Window` scene at launch (observed on plain launches with no state
+    /// to restore). A reopen takes the same path as a Dock click and shows the window; for a `Window` scene it
+    /// is idempotent, so a late-but-normal presentation is unaffected.
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            guard let self, !self.hasMainWindow else { return }
+            self.requestReopen()
+        }
+    }
+
+    /// Sends ourselves the reopen Apple event; SwiftUI answers it by presenting the primary `Window`.
+    /// Calling the delegate's `applicationShouldHandleReopen` directly does nothing — SwiftUI handles the event itself.
+    private func requestReopen() {
+        let target = NSAppleEventDescriptor(processIdentifier: ProcessInfo.processInfo.processIdentifier)
+        let event = NSAppleEventDescriptor(
+            eventClass: AEEventClass(kCoreEventClass),
+            eventID: AEEventID(kAEReopenApplication),
+            targetDescriptor: target,
+            returnID: AEReturnID(kAutoGenerateReturnID),
+            transactionID: AETransactionID(kAnyTransactionID)
+        )
+        _ = try? event.sendEvent(options: .noReply, timeout: 1)
+    }
+
     /// Call before opening the main window from inside the app (menu bar). The Dock icon has to exist
     /// before the window is ordered front, otherwise the app stays behind the previously active one.
     func willShowMainWindow() {
@@ -33,6 +58,7 @@ final class DockPresenceController: NSObject, NSApplicationDelegate, ObservableO
     /// The main window reports itself here when SwiftUI first builds it. SwiftUI reuses the same `NSWindow`
     /// on reopen, so becoming key (not view attachment) is what marks each later appearance.
     func track(_ window: NSWindow) {
+        hasMainWindow = true
         observers.forEach(NotificationCenter.default.removeObserver)
         observers = [
             NotificationCenter.default.addObserver(
