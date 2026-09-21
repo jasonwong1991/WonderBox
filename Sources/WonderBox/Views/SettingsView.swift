@@ -6,6 +6,7 @@ struct SettingsView: View {
     @AppStorage("appearance") private var appearance = AppAppearance.system.rawValue
     @AppStorage("accent") private var accent = AccentChoice.ocean.rawValue
     @AppStorage("showMenuBar") private var showMenuBar = true
+    @AppStorage("confirmQuitOnClose") private var confirmQuitOnClose = true
     @StateObject private var launchAtLogin = LaunchAtLoginController()
     @State private var language = AppLanguage.current
     @State private var showLanguageRelaunch = false
@@ -73,7 +74,18 @@ struct SettingsView: View {
                     Toggle(isOn: $showMenuBar) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Menu bar shortcut")
-                            Text("Status overview and keep awake")
+                            Text("Status overview and keep awake, even with the window closed")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Divider()
+
+                    Toggle(isOn: $confirmQuitOnClose) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Ask before quitting")
+                            Text("When the window closes with the menu bar shortcut off")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

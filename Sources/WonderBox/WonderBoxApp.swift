@@ -4,6 +4,7 @@ import SwiftUI
 @main
 struct WonderBoxApplication: App {
     @StateObject private var model = AppModel()
+    @NSApplicationDelegateAdaptor(DockPresenceController.self) private var dockPresence
     @AppStorage("appearance") private var appearance = AppAppearance.system.rawValue
     @AppStorage("accent") private var accent = AccentChoice.ocean.rawValue
     @AppStorage("showMenuBar") private var showMenuBar = true
@@ -24,12 +25,14 @@ struct WonderBoxApplication: App {
     }
 
     var body: some Scene {
-        WindowGroup(id: "main") {
+        // A single window: every window shares `model.selection`, so a second one would only mirror the first.
+        Window("WonderBox", id: "main") {
             RootView()
                 .environmentObject(model)
                 .preferredColorScheme(selectedAppearance.colorScheme)
                 .tint(selectedAccent.color)
                 .frame(minWidth: 980, minHeight: 660)
+                .reportsMainWindow(to: dockPresence)
                 .onAppear { model.startMonitoring() }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
@@ -67,6 +70,7 @@ struct WonderBoxApplication: App {
         MenuBarExtra(isInserted: $showMenuBar) {
             MenuBarContentView(preventer: model.sleepPreventer, optimizer: model.memoryOptimizer)
                 .environmentObject(model)
+                .environmentObject(dockPresence)
                 .preferredColorScheme(selectedAppearance.colorScheme)
         } label: {
             Image(nsImage: MenuBarAppIcon.image)
@@ -77,6 +81,7 @@ struct WonderBoxApplication: App {
 
 private struct MenuBarContentView: View {
     @EnvironmentObject private var model: AppModel
+    @EnvironmentObject private var dockPresence: DockPresenceController
     @Environment(\.openWindow) private var openWindow
     @ObservedObject var preventer: SleepPreventer
     @ObservedObject var optimizer: MemoryOptimizer
@@ -276,8 +281,8 @@ private struct MenuBarContentView: View {
     }
 
     private func openApp() {
+        dockPresence.willShowMainWindow()
         openWindow(id: "main")
-        NSApp.activate(ignoringOtherApps: true)
     }
 }
 

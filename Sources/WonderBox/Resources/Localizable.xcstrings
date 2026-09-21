@@ -524,6 +524,16 @@
         }
       }
     },
+    "Ask before quitting": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出前询问"
+          }
+        }
+      }
+    },
     "Authorization cancelled": {
       "localizations": {
         "zh-Hans": {
@@ -1704,6 +1714,16 @@
         }
       }
     },
+    "Keep WonderBox in the menu bar?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "让 WonderBox 常驻菜单栏？"
+          }
+        }
+      }
+    },
     "Language": {
       "localizations": {
         "zh-Hans": {
@@ -2475,6 +2495,16 @@
         }
       }
     },
+    "Quit Now": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直接退出"
+          }
+        }
+      }
+    },
     "RPM must be between 800 and 10000": {
       "extractionState": "manual",
       "localizations": {
@@ -2842,6 +2872,16 @@
         }
       }
     },
+    "Show in Menu Bar": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "常驻菜单栏"
+          }
+        }
+      }
+    },
     "Simulator caches, device support files and documentation caches": {
       "localizations": {
         "zh-Hans": {
@@ -2932,12 +2972,12 @@
         }
       }
     },
-    "Status overview and keep awake": {
+    "Status overview and keep awake, even with the window closed": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "状态概览与保持唤醒"
+            "value": "状态概览与保持唤醒，关闭窗口后依然可用"
           }
         }
       }
@@ -3088,6 +3128,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "维护 helper 未安装"
+          }
+        }
+      }
+    },
+    "The menu bar shortcut is off, so closing the window leaves no way back to WonderBox. Turn it on to stay one click away, or quit now.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "菜单栏快捷入口已关闭，关闭窗口后将无法再找到 WonderBox。开启后可随时从菜单栏访问，或者现在直接退出。"
           }
         }
       }
@@ -3430,6 +3480,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chromium 浏览器与 Electron 应用的网页缓存，跳过运行中的应用"
+          }
+        }
+      }
+    },
+    "When the window closes with the menu bar shortcut off": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "菜单栏快捷入口关闭时，关闭窗口会先询问"
           }
         }
       }
