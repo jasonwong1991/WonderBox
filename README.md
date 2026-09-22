@@ -160,6 +160,10 @@ See [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md) for the capability matrix and
 
 The WonderBox app and menu bar icons are original geometric artwork generated entirely by `scripts/generate_icon.swift` and `MenuBarAppIcon` in this repository. They do not embed third-party logos, stock artwork, or copied image assets. SF Symbols are used only as native macOS interface symbols inside the app. Application icons visible in screenshots belong to their respective owners.
 
+## Community
+
+[LinuxDo](https://linux.do)
+
 ## License
 
 [MIT](LICENSE)
