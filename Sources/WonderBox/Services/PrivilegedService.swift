@@ -99,12 +99,17 @@ enum PrivilegedService {
         let installedHelper = "/Library/PrivilegedHelperTools/\(helperLabel)"
         let installedPlist = "/Library/LaunchDaemons/\(helperLabel).plist"
         let quote = AdministratorShell.quote
+        // `install` copies the quarantine xattr from a browser-downloaded bundle; launchd refuses
+        // to load quarantined helpers with "Bootstrap failed: 5: Input/output error", so clear it.
         let commands = [
             "/usr/bin/install -d -o root -g wheel -m 755 /Library/PrivilegedHelperTools",
             "/usr/bin/install -o root -g wheel -m 755 \(quote(helper.path)) \(quote(installedHelper))",
             "/usr/bin/install -o root -g wheel -m 644 \(quote(launchDaemon.path)) \(quote(installedPlist))",
+            "/usr/bin/xattr -c \(quote(installedHelper)) >/dev/null 2>&1 || true",
+            "/usr/bin/xattr -c \(quote(installedPlist)) >/dev/null 2>&1 || true",
             "/bin/launchctl bootout system \(quote(installedPlist)) >/dev/null 2>&1 || true",
             "/bin/rm -f \(quote(socketPath))",
+            "/bin/launchctl enable system/\(helperLabel) >/dev/null 2>&1 || true",
             "/bin/launchctl bootstrap system \(quote(installedPlist))"
         ]
         switch AdministratorShell.run(commands.joined(separator: "; ")) {
