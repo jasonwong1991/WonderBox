@@ -61,6 +61,81 @@ final class WonderBoxTests: XCTestCase {
         XCTAssertNil(ApplicationScanner.application(from: URL(fileURLWithPath: "/tmp/example.txt")))
     }
 
+    func testRelatedFileIdentifierMatchingIsDotDelimited() {
+        let identifier = "com.example.demo"
+        for name in ["com.example.demo", "COM.Example.Demo.plist", "com.example.demo.Helper.savedState", "ABCDE12345.com.example.demo", "group.com.example.demo"] {
+            XCTAssertTrue(ApplicationScanner.belongs(name, toIdentifier: identifier), name)
+        }
+        for name in ["com.example.demostore", "com.example.demo-helper", "com.example", "demo"] {
+            XCTAssertFalse(ApplicationScanner.belongs(name, toIdentifier: identifier), name)
+        }
+        XCTAssertTrue(ApplicationScanner.belongs("Electron.plist", toIdentifier: "electron"))
+        XCTAssertFalse(ApplicationScanner.belongs("com.foo.electron.plist", toIdentifier: "electron"))
+    }
+
+    func testRelatedFileDiscoveryCoversUserSystemAndTemporaryLocations() throws {
+        let manager = FileManager.default
+        let root = manager.temporaryDirectory.appendingPathComponent("wonderbox-home-\(UUID().uuidString)")
+        defer { try? manager.removeItem(at: root) }
+        let home = root.appendingPathComponent("home")
+        let systemLibrary = root.appendingPathComponent("SystemLibrary")
+        let userCache = root.appendingPathComponent("var/folders/C")
+        let expected = [
+            "home/Library/Preferences/com.example.demo.plist",
+            "home/Library/Preferences/com.example.demo.Helper.plist",
+            "home/Library/Preferences/ByHost/com.example.demo.0000.plist",
+            "home/Library/Containers/com.example.demo.Extension",
+            "home/Library/Group Containers/ABCDE12345.com.example.demo",
+            "home/Library/Cookies/com.example.demo.binarycookies",
+            "home/Library/LaunchAgents/com.example.demo.agent.plist",
+            "home/Library/Application Support/Demo",
+            "home/Library/Application Support/CrashReporter/Demo_host.plist",
+            "home/Library/Logs/DiagnosticReports/Demo-2024-01-01-120000.ips",
+            "SystemLibrary/LaunchDaemons/com.example.demo.daemon.plist",
+            "SystemLibrary/Application Support/Demo",
+            "var/folders/C/com.example.demo"
+        ]
+        let unrelated = [
+            "home/Library/Preferences/com.example.demostore.plist",
+            "home/Library/Application Support/Demonstration",
+            "home/Library/Logs/DiagnosticReports/Demonstrator-2024-01-01-120000.ips",
+            "home/Library/Caches/com.other.app"
+        ]
+        for path in expected + unrelated {
+            let url = root.appendingPathComponent(path)
+            try manager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data().write(to: url)
+        }
+        let application = InstalledApplication(
+            url: URL(fileURLWithPath: "/Applications/Demo.app"),
+            name: "Demo",
+            bundleIdentifier: "com.example.demo",
+            version: nil,
+            size: 0,
+            installedAt: nil,
+            lastUsedAt: nil
+        )
+
+        let found = ApplicationScanner.relatedFileCandidates(
+            for: application,
+            home: home,
+            systemLibrary: systemLibrary,
+            temporaryDirectories: [userCache]
+        )
+        let rootPrefix = root.standardizedFileURL.path + "/"
+        XCTAssertEqual(
+            Set(found.map { String($0.path.dropFirst(rootPrefix.count)) }),
+            Set(expected)
+        )
+    }
+
+    func testZipArchivesCountAsInstallersOnlyWhenTheyContainAnAppOrPackage() {
+        XCTAssertTrue(StorageCleaner.archiveEntriesContainInstaller(["Demo.app/", "Demo.app/Contents/Info.plist"]))
+        XCTAssertTrue(StorageCleaner.archiveEntriesContainInstaller(["__MACOSX/", "Installer/Setup.PKG"]))
+        XCTAssertFalse(StorageCleaner.archiveEntriesContainInstaller(["photos/IMG_0001.jpg", "photos/appendix.txt", "notes.application"]))
+        XCTAssertFalse(StorageCleaner.archiveEntriesContainInstaller([String]()))
+    }
+
     func testApplicationSortingSupportsSizeInstallAndLastUse() {
         let old = Date(timeIntervalSince1970: 1_000)
         let recent = Date(timeIntervalSince1970: 5_000)

@@ -55,7 +55,7 @@ enum ProcessMemoryInspector {
         resourceUsage(of: pid)?.ri_phys_footprint
     }
 
-    private static func resourceUsage(of pid: pid_t) -> rusage_info_v4? {
+    static func resourceUsage(of pid: pid_t) -> rusage_info_v4? {
         var info = rusage_info_v4()
         let result = withUnsafeMutablePointer(to: &info) {
             $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) {
@@ -72,7 +72,7 @@ enum ProcessMemoryInspector {
         return "/" + components[...index].joined(separator: "/")
     }
 
-    private static func allProcessIdentifiers() -> [pid_t] {
+    static func allProcessIdentifiers() -> [pid_t] {
         let bytesNeeded = proc_listpids(UInt32(PROC_ALL_PIDS), 0, nil, 0)
         guard bytesNeeded > 0 else { return [] }
         var buffer = [pid_t](repeating: 0, count: Int(bytesNeeded) / MemoryLayout<pid_t>.size + 32)
@@ -81,9 +81,14 @@ enum ProcessMemoryInspector {
         return buffer.prefix(Int(bytesWritten) / MemoryLayout<pid_t>.size).filter { $0 > 0 }
     }
 
-    private static func executablePath(of pid: pid_t) -> String? {
+    static func executablePath(of pid: pid_t) -> String? {
         var buffer = [CChar](repeating: 0, count: pathBufferSize)
         guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return nil }
         return String(cString: buffer)
+    }
+
+    static func isQuittable(bundle: Bundle?, path: String) -> Bool {
+        guard let bundle, path != Bundle.main.bundleURL.standardizedFileURL.path else { return false }
+        return !protectedBundleIdentifiers.contains(bundle.bundleIdentifier ?? "")
     }
 }

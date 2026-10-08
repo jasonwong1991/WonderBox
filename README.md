@@ -23,7 +23,7 @@
 
 ![WonderBox overview page showing CPU, memory, disk, network, battery and uptime](docs/screenshots/overview.png)
 
-> The interface is in Simplified Chinese. Everything runs on-device; nothing is uploaded.
+> The interface supports English and Simplified Chinese. Everything runs on-device; nothing is uploaded.
 
 ## Why WonderBox
 
@@ -46,6 +46,13 @@ Most "Mac cleaners" show you a big green number and hope you don't check. Wonder
 - One-click optimization: system-wide memory-pressure broadcast, then file-cache purge, with a per-category before/after report
 - The overview health banner reflects memory pressure, not just thermal state
 
+### CPU and GPU
+
+- Live per-application rankings, including helper processes, refreshed every 3 seconds; search, quit and force quit from the list
+- CPU follows Activity Monitor's convention: one occupied core is 100%, so multi-core apps can exceed 100%
+- GPU process usage comes from driver-provided context counters where available; unsupported drivers show `—`, not a fabricated zero. Concurrent contexts can total more than the overall device utilization
+- Uptime includes sleep, matching System Information's “Time since boot”
+
 ### Space cleanup
 
 ![Deep cleanup showing package-manager caches and browser caches](docs/screenshots/cleaner-deep.png)
@@ -64,6 +71,8 @@ Most "Mac cleaners" show you a big green number and hope you don't check. Wonder
 
 Every category expands to item level so you can keep one tool's cache and drop another:
 
+The detail sheet has a single Select All / Deselect All toggle. Done saves changes; Close or Escape discards the draft and keeps the previous selection. ZIP archives count as installers only when they contain an app, installer package or disk image.
+
 ![Item-level selection inside the package cache category](docs/screenshots/cleaner-detail.png)
 
 ### Application uninstall
@@ -71,6 +80,8 @@ Every category expands to item level so you can keep one tool's cache and drop a
 ![Application uninstall with related files](docs/screenshots/applications.png)
 
 Inventory of `/Applications` and `~/Applications` with size, install date and last-use date from Spotlight; large/stale filters; related caches, preferences, containers and saved state listed per app; everything goes to the Trash.
+
+Related files are grouped in expandable folders with group selection and content previews. Normal user permissions are tried first; protected apps use the shared helper after one administrator authorization. The helper checks the caller's signing identity and user ID, restricts paths, refuses symlink traversal, and preserves names inside separate Trash folders. Updating an ad-hoc signed build may require authorization again; passwords are never stored.
 
 ### Disk analyzer
 
@@ -93,6 +104,7 @@ Drill into any folder level by level with sizes computed in parallel, sort by si
 - Keep-awake with a 30 min / 1 h / 2 h / indefinite timer and optional display wake, using public IOKit assertions
 - Menu bar dashboard: CPU, memory, disk, fan RPM, keep-awake toggle, memory optimization and one-click cleanup without opening the window
 - System / light / dark appearance, four accent colours, launch at login
+- A dedicated Startup settings area with approval status and an entry point to macOS Login Items management; external changes are reflected when returning to WonderBox
 
 ![Settings page with appearance, language, menu bar, launch at login and permission status](docs/screenshots/settings.png)
 
@@ -142,16 +154,16 @@ WonderBox asks for exactly what a feature needs, when you first use it:
 | Monitoring, keep awake, app inventory, standard cleanup | none | — |
 | Trash size and emptying | Automation (Finder) | first cleanup scan |
 | Full home-directory scans | Full Disk Access (optional, user-controlled) | onboarding or Settings |
-| Fan control, memory optimization | Administrator password, once, to install the helper daemon | first fan write or memory optimization |
+| Fan control, memory optimization, protected app removal | Administrator authorization to install or update the shared helper | first privileged action |
 | `/Library/Caches` cleanup | Administrator password per run | when that category is selected |
 
-The helper daemon is a fixed-command service reachable over a root-owned Unix socket. It accepts `version`, `status`, `set-auto`, `set-rpm`, and `optimize-memory` — nothing else — and is reinstalled (one prompt) only when the bundled version is newer.
+The helper daemon is a fixed-command service reachable over a root-owned Unix socket. It verifies the caller's signing identity and user ID before accepting fan, memory-maintenance or restricted Trash requests; it never executes caller-supplied shell commands. Installing or updating the helper, or changing the app's ad-hoc signing identity, requires administrator authorization.
 
 ## Distribution profiles
 
 The core monitor and awake features use public APIs. Application and cleanup operations use public Foundation APIs, but broad user-Library access is restricted by App Sandbox.
 
-- **Direct** (what `package_app.sh` builds): bundles `WonderFanHelper`; the helper daemon (protocol v4) performs fan writes and the memory-pressure broadcast/purge. Full Disk Access can be enabled once for broad local scans.
+- **Direct** (what `package_app.sh` builds): bundles `WonderFanHelper`; the helper daemon (protocol v5) performs fan writes, memory-pressure broadcast/purge and protected app removal. Full Disk Access can be enabled once for broad local scans.
 - **App Store:** enable `WonderBox-AppStore.entitlements`, omit the fan helper/CSMC source, and retain user-selected file access. Broad cleanup categories must use folder selection with security-scoped bookmarks or be disabled.
 
 See [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md) for the capability matrix and release checklist.

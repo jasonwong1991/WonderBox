@@ -8,8 +8,11 @@ final class AppModel: ObservableObject {
     @Published var selection: AppSection? = .overview
     @Published private(set) var snapshot = MetricSnapshot()
     @Published private(set) var cpuHistory: [Double] = Array(repeating: 0, count: 30)
+    @Published private(set) var gpuHistory: [Double] = Array(repeating: 0, count: 30)
     @Published private(set) var memoryHistory: [Double] = Array(repeating: 0, count: 30)
     @Published private(set) var fans: [FanReading] = []
+    @Published private(set) var isRefreshingFans = false
+    @Published private(set) var hasReadFans = false
     @Published private(set) var fanMessage: String?
     @Published private(set) var isMonitoring = false
     @Published private(set) var applications: [InstalledApplication] = []
@@ -26,6 +29,7 @@ final class AppModel: ObservableObject {
     @Published var selectedApplication: InstalledApplication?
     @Published private(set) var relatedFiles: [RelatedFile] = []
     @Published private(set) var isScanningRelatedFiles = false
+    @Published private(set) var isUninstallingApplication = false
     @Published var cleanupScanMode: CleanupScanMode = .standard
     @Published private(set) var cleanupCategories: [CleanupCategory] = CleanupKind.kinds(for: .standard).map {
         CleanupCategory(
@@ -46,6 +50,7 @@ final class AppModel: ObservableObject {
 
     let sleepPreventer = SleepPreventer()
     let memoryOptimizer = MemoryOptimizer()
+    let processorMonitor = ProcessorMonitor()
     let systemInfo = SystemInformation.current
 
     private var monitorTask: Task<Void, Never>?
@@ -101,6 +106,7 @@ final class AppModel: ObservableObject {
                 switch self.selection {
                 case .fan: await self.refreshFans()
                 case .memory: await self.memoryOptimizer.refreshApplications()
+                case .cpu, .gpu: await self.processorMonitor.refresh()
                 default: break
                 }
                 try? await Task.sleep(for: .seconds(3))
@@ -122,16 +128,21 @@ final class AppModel: ObservableObject {
         previousCounters = sample.counters
         snapshot = sample.snapshot
         cpuHistory.append(sample.snapshot.cpuUsage)
+        gpuHistory.append(sample.snapshot.gpuUsage ?? 0)
         memoryHistory.append(sample.snapshot.memoryFraction)
         cpuHistory = Array(cpuHistory.suffix(60))
+        gpuHistory = Array(gpuHistory.suffix(60))
         memoryHistory = Array(memoryHistory.suffix(60))
     }
 
     func refreshFans() async {
-        let readings = await Task.detached(priority: .utility) {
-            FanController.readFans()
+        guard !isRefreshingFans else { return }
+        isRefreshingFans = true
+        defer { isRefreshingFans = false; hasReadFans = true }
+        let isInitial = !hasReadFans
+        fans = await Task.detached(priority: .utility) {
+            FanController.initialReadings(retry: isInitial)
         }.value
-        fans = readings
     }
 
     func refreshFullDiskAccessStatus() {
@@ -228,6 +239,13 @@ final class AppModel: ObservableObject {
         relatedFiles[index].isSelected = selected
     }
 
+    func setRelatedFiles(_ files: [RelatedFile], selected: Bool) {
+        let ids = Set(files.map(\.id))
+        for index in relatedFiles.indices where ids.contains(relatedFiles[index].id) {
+            relatedFiles[index].isSelected = selected
+        }
+    }
+
     func setAllRelatedFiles(_ selected: Bool) {
         for index in relatedFiles.indices {
             relatedFiles[index].isSelected = selected
@@ -235,16 +253,34 @@ final class AppModel: ObservableObject {
     }
 
     func uninstallSelectedApplication() async {
-        guard let selectedApplication else { return }
+        guard let selectedApplication, !isUninstallingApplication, !isScanningRelatedFiles else { return }
+        isUninstallingApplication = true
+        defer { isUninstallingApplication = false }
+        relatedFileScanID = UUID()
         let selectedRelated = relatedFiles.filter(\.isSelected)
-        let result = await Task.detached(priority: .userInitiated) {
+        let outcome = await Task.detached(priority: .userInitiated) {
             ApplicationScanner.uninstall(application: selectedApplication, relatedFiles: selectedRelated)
         }.value
-        operationMessage = result
+        let message: String
+        if outcome.failed.isEmpty {
+            message = String(localized: "Moved \(outcome.trashed) items to the Trash")
+        } else {
+            // Only failures need the helper; reuse its one-time authorization for subsequent uninstalls.
+            switch await PrivilegedService.trash(outcome.failed) {
+            case let .success(result) where result.failed.isEmpty:
+                message = String(localized: "Moved \(outcome.trashed + result.moved) items to the Trash")
+            case let .success(result):
+                message = String(localized: "Moved \(outcome.trashed + result.moved) items to the Trash; \(result.failed.count) could not be removed")
+            case let .failure(failure):
+                message = String(localized: "Moved \(outcome.trashed) items to the Trash") + " · " + failure.message
+            }
+        }
         self.selectedApplication = nil
         relatedFiles = []
         isScanningRelatedFiles = false
+        // The rescan clears the previous message; report this result afterwards so it stays visible.
         await scanApplications()
+        operationMessage = message
     }
 
     func scanStorage() async {
@@ -312,6 +348,11 @@ final class AppModel: ObservableObject {
         else { return }
         cleanupCategories[categoryIndex].items[itemIndex].isSelected = selected
         cleanupCategories[categoryIndex].isSelected = cleanupCategories[categoryIndex].items.contains(where: \.isSelected)
+    }
+
+    func applyCleanupSelection(kind: CleanupKind, selection: Set<URL>, displayedItems: Set<URL>) {
+        guard let index = cleanupCategories.firstIndex(where: { $0.kind == kind }) else { return }
+        cleanupCategories[index].applySelection(selection, displayedItems: displayedItems)
     }
 
     func cleanSelectedCategories() async {

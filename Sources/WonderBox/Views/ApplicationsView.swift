@@ -12,7 +12,7 @@ struct ApplicationsView: View {
                 subtitle: String(localized: "Applications and related files"),
                 actionTitle: String(localized: "Choose App"),
                 actionSymbol: "plus",
-                isWorking: model.isScanningApplications,
+            isWorking: model.isScanningApplications,
                 action: chooseApplication
             )
 
@@ -22,6 +22,7 @@ struct ApplicationsView: View {
 
             HSplitView {
                 applicationList
+                    .disabled(model.isUninstallingApplication)
                     .frame(minWidth: 320, idealWidth: 370, maxWidth: 440)
                 applicationDetail
                     .frame(minWidth: 440, maxWidth: .infinity, maxHeight: .infinity)
@@ -158,7 +159,7 @@ struct ApplicationsView: View {
     @ViewBuilder
     private var applicationDetail: some View {
         if let application = model.selectedApplication {
-            ApplicationDetail(application: application)
+            ApplicationDetail(application: application).id(application.id)
         } else {
             EmptyContentView(
                 symbol: "shippingbox",
@@ -169,6 +170,7 @@ struct ApplicationsView: View {
     }
 
     private func chooseApplication() {
+        guard !model.isUninstallingApplication else { return }
         let panel = NSOpenPanel()
         panel.title = String(localized: "Choose an application to uninstall")
         panel.prompt = String(localized: "Choose")
@@ -316,10 +318,10 @@ private struct ApplicationDetail: View {
                         .font(.headline)
                     Spacer()
                     if !model.relatedFiles.isEmpty {
-                        Button("Select All") { model.setAllRelatedFiles(true) }
-                            .buttonStyle(.borderless)
-                        Button("Deselect All") { model.setAllRelatedFiles(false) }
-                            .buttonStyle(.borderless)
+                        Button(model.relatedFiles.allSatisfy(\.isSelected) ? "Deselect All" : "Select All") {
+                            model.setAllRelatedFiles(!model.relatedFiles.allSatisfy(\.isSelected))
+                        }
+                        .buttonStyle(.borderless)
                     }
                     Text("\(model.relatedFiles.count) items · \(AppFormatters.bytes(selectedRelatedSize))")
                         .font(.caption)
@@ -340,37 +342,8 @@ private struct ApplicationDetail: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 2) {
-                            ForEach(model.relatedFiles) { file in
-                                HStack(spacing: 8) {
-                                    Toggle(isOn: Binding(
-                                        get: { file.isSelected },
-                                        set: { model.setRelatedFile(file, selected: $0) }
-                                    )) {
-                                        Image(systemName: "doc")
-                                            .foregroundStyle(.secondary)
-                                            .frame(width: 20)
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(file.displayPath)
-                                                .font(.subheadline)
-                                                .lineLimit(1)
-                                                .truncationMode(.middle)
-                                            Text(AppFormatters.bytes(file.size))
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    .toggleStyle(.checkbox)
-                                    Spacer(minLength: 4)
-                                    Button {
-                                        NSWorkspace.shared.activateFileViewerSelecting([file.url])
-                                    } label: {
-                                        Image(systemName: "folder")
-                                    }
-                                    .buttonStyle(.borderless)
-                                    .help("Show in Finder")
-                                }
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 7)
+                            ForEach(RelatedFileGroup.groups(for: model.relatedFiles)) { group in
+                                RelatedFileGroupView(group: group)
                             }
                         }
                     }
@@ -416,6 +389,140 @@ private struct ApplicationDetail: View {
         } message: {
             Text("The app and the selected related files will be moved to the Trash.")
         }
+    }
+}
+
+private struct RelatedFileGroupView: View {
+    @EnvironmentObject private var model: AppModel
+    let group: RelatedFileGroup
+    @State private var expanded = true
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 9) {
+                MixedSelectionCheckbox(selected: group.selectedCount, total: group.files.count) {
+                    model.setRelatedFiles(group.files, selected: group.selectedCount != group.files.count)
+                }
+                .accessibilityLabel("Select \(group.category.title)")
+                Button { expanded.toggle() } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                            .font(.caption.weight(.semibold)).frame(width: 12)
+                        Image(systemName: "folder.fill").foregroundStyle(Color.accentColor)
+                        Text(group.category.title).font(.subheadline.weight(.semibold))
+                        Spacer(minLength: 4)
+                        Text("\(group.files.count) items").font(.caption).foregroundStyle(.secondary)
+                        Text(AppFormatters.bytes(group.size)).font(.caption.monospacedDigit())
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityValue(expanded ? String(localized: "Expanded") : String(localized: "Collapsed"))
+            }
+            .padding(10)
+            .background(Color.accentColor.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            if expanded {
+                ForEach(group.files) { file in
+                    RelatedFileRow(file: file)
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 5)
+    }
+}
+
+/// Native mixed state distinguishes a partially selected folder from a fully selected one.
+private struct MixedSelectionCheckbox: NSViewRepresentable {
+    let selected: Int
+    let total: Int
+    let action: () -> Void
+    func makeCoordinator() -> Coordinator { Coordinator(action: action) }
+    func makeNSView(context: Context) -> NSButton {
+        let button = NSButton(checkboxWithTitle: "", target: context.coordinator, action: #selector(Coordinator.clicked))
+        button.allowsMixedState = true
+        return button
+    }
+    func updateNSView(_ button: NSButton, context: Context) {
+        context.coordinator.action = action
+        button.state = selected == 0 ? .off : selected == total ? .on : .mixed
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSButton, context: Context) -> CGSize? {
+        CGSize(width: 18, height: 18)
+    }
+    final class Coordinator: NSObject {
+        var action: () -> Void
+        init(action: @escaping () -> Void) { self.action = action }
+        @objc func clicked() { action() }
+    }
+}
+
+private struct RelatedFileRow: View {
+    @EnvironmentObject private var model: AppModel
+    let file: RelatedFile
+    @State private var expanded = false
+    @State private var children: [URL] = []
+    @State private var isLoading = false
+
+    private var isDirectory: Bool {
+        (try? file.url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])).map {
+            $0.isDirectory == true && $0.isSymbolicLink != true
+        } ?? false
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 9) {
+                if isDirectory {
+                    Button { expanded.toggle() } label: {
+                        Image(systemName: expanded ? "chevron.down" : "chevron.right").font(.caption).frame(width: 12)
+                    }
+                    .buttonStyle(.plain).help("Preview folder contents")
+                    .accessibilityLabel("Preview \(file.url.lastPathComponent)")
+                } else { Color.clear.frame(width: 12) }
+                Toggle("", isOn: Binding(get: { file.isSelected }, set: { model.setRelatedFile(file, selected: $0) }))
+                    .toggleStyle(.checkbox).labelsHidden()
+                    .accessibilityLabel("Select \(file.displayPath)")
+                Image(systemName: isDirectory ? "folder.fill" : "doc")
+                    .foregroundStyle(isDirectory ? Color.accentColor : .secondary).frame(width: 24)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(file.url.lastPathComponent).font(.subheadline.weight(.medium)).lineLimit(1)
+                    Text(file.displayPath).font(.caption).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                }
+                Spacer(minLength: 4)
+                Text(AppFormatters.bytes(file.size)).font(.caption.monospacedDigit())
+                Button { NSWorkspace.shared.activateFileViewerSelecting([file.url]) } label: {
+                    Image(systemName: "folder")
+                }
+                .buttonStyle(.borderless).help("Show in Finder")
+            }
+            .padding(.vertical, 9)
+            if expanded {
+                VStack(alignment: .leading, spacing: 6) {
+                    if isLoading { ProgressView().controlSize(.small) }
+                    ForEach(children, id: \.self) { url in
+                        Label(url.lastPathComponent, systemImage: url.hasDirectoryPath ? "folder" : "doc")
+                            .font(.caption).lineLimit(1).truncationMode(.middle)
+                    }
+                    Text("Folder selection includes all its contents. Preview shows up to 100 items.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+                .padding(.leading, 62).padding(.bottom, 10)
+                .opacity(file.isSelected ? 1 : 0.55)
+                .task {
+                    isLoading = true
+                    children = await Task.detached(priority: .utility) {
+                        Array(FileSystemScanner.children(of: file.url).sorted {
+                            $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
+                        }.prefix(100))
+                    }.value
+                    isLoading = false
+                }
+            }
+        }
+        .padding(.horizontal, 7)
     }
 }
 

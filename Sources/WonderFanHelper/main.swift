@@ -1,10 +1,13 @@
 import CSMC
 import Darwin
 import Foundation
+import Security
+import WonderSupport
 
 /// Keep in sync with `PrivilegedService.protocolVersion` in Sources/WonderBox/Services/PrivilegedService.swift.
-private let protocolVersion = "4"
+private let protocolVersion = "5"
 private let defaultSocketPath = "/var/run/com.wondercraft.WonderBox.fan.sock"
+private let clientAuthorizationPath = "/Library/PrivilegedHelperTools/com.wondercraft.WonderBox.FanHelper.client.json"
 
 private func fail(_ message: String, code: Int32) -> Never {
     FileHandle.standardError.write(Data((message + "\n").utf8))
@@ -66,7 +69,7 @@ private func optimizeMemory() -> String {
     return "ok \(steps.joined(separator: " "))\n"
 }
 
-private func handle(_ request: String) -> String {
+private func handle(_ request: String, authorizedUID: uid_t? = nil) -> String {
     let fields = request.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: " ")
     guard let command = fields.first else { return "error Empty command\n" }
     switch command {
@@ -95,8 +98,61 @@ private func handle(_ request: String) -> String {
     case "optimize-memory":
         guard fields.count == 1 else { return "error Invalid arguments for optimize-memory\n" }
         return optimizeMemory()
+    case "trash":
+        guard fields.count == 2, let uid = authorizedUID, uid != 0,
+              let user = getpwuid(uid), let directory = user.pointee.pw_dir,
+              let data = Data(base64Encoded: String(fields[1])),
+              let request = try? JSONDecoder().decode(TrashRequest.self, from: data), request.paths.count <= 256 else {
+            return "error Invalid uninstall request\n"
+        }
+        let result = PrivilegedTrash.move(request, uid: uid, gid: user.pointee.pw_gid, home: String(cString: directory))
+        guard let encoded = try? JSONEncoder().encode(result) else { return "error Invalid uninstall response\n" }
+        return "ok \(encoded.base64EncodedString())\n"
     default:
         return "error Unsupported command\n"
+    }
+}
+
+private func clientAuthorization() -> HelperClientAuthorization? {
+    let descriptor = open(clientAuthorizationPath, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
+    guard descriptor >= 0 else { return nil }
+    let file = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+    var info = stat()
+    guard fstat(descriptor, &info) == 0, info.st_uid == 0, info.st_mode & S_IFMT == S_IFREG, info.st_mode & 0o077 == 0,
+          info.st_size > 0, info.st_size < 16_384,
+          let data = try? file.readToEnd() else { return nil }
+    return try? JSONDecoder().decode(HelperClientAuthorization.self, from: data)
+}
+
+/// Audit-token identity avoids PID reuse between looking up the caller and checking its signature.
+private func authorizedUser(_ client: Int32) -> uid_t? {
+    guard let authorization = clientAuthorization() else { return nil }
+    var uid: uid_t = 0
+    var gid: gid_t = 0
+    guard getpeereid(client, &uid, &gid) == 0, uid == authorization.uid else { return nil }
+    var token = audit_token_t()
+    var size = socklen_t(MemoryLayout<audit_token_t>.size)
+    guard getsockopt(client, SOL_LOCAL, LOCAL_PEERTOKEN, &token, &size) == 0,
+          size == MemoryLayout<audit_token_t>.size else { return nil }
+    let data = withUnsafeBytes(of: token) { Data($0) }
+    var code: SecCode?
+    var requirement: SecRequirement?
+    guard SecCodeCopyGuestWithAttributes(nil, [kSecGuestAttributeAudit: data] as CFDictionary, [], &code) == errSecSuccess,
+          let code, SecRequirementCreateWithString(authorization.requirement as CFString, [], &requirement) == errSecSuccess,
+          let requirement, SecCodeCheckValidity(code, [], requirement) == errSecSuccess else { return nil }
+    return uid
+}
+
+private func writeReply(_ response: String, to client: Int32) {
+    let data = Data(response.utf8)
+    data.withUnsafeBytes { bytes in
+        var offset = 0
+        while offset < bytes.count {
+            let count = Darwin.write(client, bytes.baseAddress!.advanced(by: offset), bytes.count - offset)
+            if count < 0 && errno == EINTR { continue }
+            guard count > 0 else { return }
+            offset += count
+        }
     }
 }
 
@@ -136,18 +192,48 @@ private func serve(socketPath: String) -> Never {
         fail("failed to listen on socket", code: 71)
     }
 
+    let controlQueue = DispatchQueue(label: "com.wondercraft.WonderBox.helper.control")
+    let trashQueue = DispatchQueue(label: "com.wondercraft.WonderBox.helper.trash")
+
     while true {
         let client = Darwin.accept(server, nil, nil)
         guard client >= 0 else { continue }
         autoreleasepool {
-            var buffer = [UInt8](repeating: 0, count: 256)
-            let count = Darwin.read(client, &buffer, buffer.count)
-            let request = count > 0 ? String(decoding: buffer.prefix(count), as: UTF8.self) : ""
-            let response = handle(request)
-            response.withCString { bytes in
-                _ = Darwin.write(client, bytes, strlen(bytes))
+            var queued = false
+            defer { if !queued { Darwin.close(client) } }
+            var timeout = timeval(tv_sec: 2, tv_usec: 0)
+            _ = setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+            _ = setsockopt(client, SOL_SOCKET, SO_SNDTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+            guard let uid = authorizedUser(client) else {
+                writeReply("error Background service client authorization failed\n", to: client)
+                return
             }
-            Darwin.close(client)
+            var buffer = [UInt8](repeating: 0, count: 4096)
+            var request = Data()
+            while request.count < 65_536 {
+                let count = Darwin.read(client, &buffer, min(buffer.count, 65_536 - request.count))
+                if count < 0 && errno == EINTR { continue }
+                guard count > 0 else { return }
+                request.append(contentsOf: buffer.prefix(count))
+                if request.contains(10) { break }
+            }
+            guard request.last == 10 else { return }
+            let text = String(decoding: request, as: UTF8.self)
+            let command = text.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: " ").first
+            // Health checks stay responsive during a large application's ownership transfer. Otherwise
+            // ensureReady could time out and reinstall (killing the daemon in the middle of a move).
+            if command == "version" || command == "status" {
+                writeReply(handle(text, authorizedUID: uid), to: client)
+            } else {
+                queued = true
+                let queue = command == "trash" ? trashQueue : controlQueue
+                queue.async {
+                    autoreleasepool {
+                        defer { Darwin.close(client) }
+                        writeReply(handle(text, authorizedUID: uid), to: client)
+                    }
+                }
+            }
         }
     }
 }

@@ -1,20 +1,22 @@
 import Darwin
 import Foundation
+import Security
+import WonderSupport
 
 struct PrivilegedServiceResult: Sendable {
     let succeeded: Bool
     let message: String
 }
 
-/// Client for the root helper daemon shared by fan control and system-wide memory maintenance.
+/// Client for the root helper daemon shared by fan control, memory maintenance and protected app removal.
 enum PrivilegedService {
     /// Keep in sync with `protocolVersion` in Sources/WonderFanHelper/main.swift.
-    static let protocolVersion = "4"
+    static let protocolVersion = "5"
     private static let socketPath = "/var/run/com.wondercraft.WonderBox.fan.sock"
     private static let helperLabel = "com.wondercraft.WonderBox.FanHelper"
     private static let helperName = "WonderFanHelper"
-    /// Memory optimization holds the connection for several seconds; never block a caller indefinitely.
-    private static let replyTimeout = timeval(tv_sec: 30, tv_usec: 0)
+    static let clientAuthorizationPath = "/Library/PrivilegedHelperTools/com.wondercraft.WonderBox.FanHelper.client.json"
+    @MainActor private static var readinessTask: Task<PrivilegedServiceResult, Never>?
 
     enum Reply: Sendable {
         case success(String)
@@ -24,6 +26,15 @@ enum PrivilegedService {
 
     @MainActor
     static func ensureReady() async -> PrivilegedServiceResult {
+        if let readinessTask { return await readinessTask.value }
+        let task = Task { await prepareService() }
+        readinessTask = task
+        defer { readinessTask = nil }
+        return await task.value
+    }
+
+    @MainActor
+    private static func prepareService() async -> PrivilegedServiceResult {
         var ready = await Task.detached(priority: .userInitiated) {
             serviceVersion() == protocolVersion
         }.value
@@ -44,11 +55,13 @@ enum PrivilegedService {
         )
     }
 
-    static func send(_ command: String) -> Reply {
+    static func send(_ command: String, timeoutSeconds: Int = 30) -> Reply {
         let descriptor = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
         guard descriptor >= 0 else { return .unavailable }
         defer { Darwin.close(descriptor) }
-        var timeout = replyTimeout
+        var noSignal: Int32 = 1
+        setsockopt(descriptor, SOL_SOCKET, SO_NOSIGPIPE, &noSignal, socklen_t(MemoryLayout<Int32>.size))
+        var timeout = timeval(tv_sec: timeoutSeconds, tv_usec: 0)
         let timeoutSize = socklen_t(MemoryLayout<timeval>.size)
         setsockopt(descriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, timeoutSize)
         setsockopt(descriptor, SOL_SOCKET, SO_SNDTIMEO, &timeout, timeoutSize)
@@ -71,13 +84,36 @@ enum PrivilegedService {
         }
         guard result == 0 else { return .unavailable }
 
+        // A substituted local socket must not impersonate the installed root daemon.
+        var peerUID: uid_t = 0
+        var peerGID: gid_t = 0
+        guard getpeereid(descriptor, &peerUID, &peerGID) == 0, peerUID == 0 else { return .unavailable }
+
         let request = command + "\n"
-        let written = request.withCString { Darwin.write(descriptor, $0, strlen($0)) }
-        guard written == request.utf8.count else { return .unavailable }
-        var bytes = [UInt8](repeating: 0, count: 512)
-        let count = Darwin.read(descriptor, &bytes, bytes.count)
-        guard count > 0 else { return .unavailable }
-        let response = String(decoding: bytes.prefix(count), as: UTF8.self)
+        let data = Data(request.utf8)
+        guard data.count <= 65_536 else { return .failure(String(localized: "Too many files in the uninstall request")) }
+        let written = data.withUnsafeBytes { buffer -> Bool in
+            var offset = 0
+            while offset < buffer.count {
+                let count = Darwin.write(descriptor, buffer.baseAddress!.advanced(by: offset), buffer.count - offset)
+                if count < 0 && errno == EINTR { continue }
+                guard count > 0 else { return false }
+                offset += count
+            }
+            return true
+        }
+        guard written else { return .unavailable }
+        var reply = Data()
+        var bytes = [UInt8](repeating: 0, count: 4096)
+        while reply.count < 65_536 {
+            let count = Darwin.read(descriptor, &bytes, min(bytes.count, 65_536 - reply.count))
+            if count < 0 && errno == EINTR { continue }
+            guard count > 0 else { return .unavailable }
+            reply.append(contentsOf: bytes.prefix(count))
+            if reply.contains(10) { break }
+        }
+        guard reply.last == 10 else { return .unavailable }
+        let response = String(decoding: reply, as: UTF8.self)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         // The daemon speaks English; its messages are catalog keys on this side.
         if response.hasPrefix("ok ") {
@@ -90,6 +126,33 @@ enum PrivilegedService {
     }
 
     @MainActor
+    static func trash(_ urls: [URL]) async -> Result<TrashResponse, PrivilegedServiceFailure> {
+        do {
+            try FileManager.default.createDirectory(at: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".Trash"), withIntermediateDirectories: true)
+        } catch {
+            return .failure(PrivilegedServiceFailure(message: error.localizedDescription))
+        }
+        let ready = await ensureReady()
+        guard ready.succeeded else { return .failure(PrivilegedServiceFailure(message: ready.message)) }
+        guard let data = try? JSONEncoder().encode(TrashRequest(paths: urls.map(\.path))) else {
+            return .failure(PrivilegedServiceFailure(message: String(localized: "Invalid uninstall request")))
+        }
+        let command = "trash " + data.base64EncodedString()
+        let reply = await Task.detached(priority: .userInitiated) { send(command, timeoutSeconds: 120) }.value
+        switch reply {
+        case let .success(payload):
+            guard let data = Data(base64Encoded: payload), let result = try? JSONDecoder().decode(TrashResponse.self, from: data) else {
+                return .failure(PrivilegedServiceFailure(message: String(localized: "Background service returned an invalid response")))
+            }
+            return .success(result)
+        case let .failure(message): return .failure(PrivilegedServiceFailure(message: message))
+        case .unavailable: return .failure(PrivilegedServiceFailure(message: String(localized: "Lost connection to the background service")))
+        }
+    }
+
+    struct PrivilegedServiceFailure: Error { let message: String }
+
+    @MainActor
     private static func install() -> PrivilegedServiceResult {
         guard let helper = HelperLocator.executable(named: helperName),
               let launchDaemon = HelperLocator.resource(named: "\(helperLabel).plist")
@@ -99,20 +162,29 @@ enum PrivilegedService {
         let installedHelper = "/Library/PrivilegedHelperTools/\(helperLabel)"
         let installedPlist = "/Library/LaunchDaemons/\(helperLabel).plist"
         let quote = AdministratorShell.quote
+        // Bind the persistent service to this signed app and the authorizing user, not all staff
+        // processes. Ad-hoc builds get a cdhash requirement, so replacing the binary needs approval.
+        guard let requirement = clientRequirement(),
+              let authorization = try? JSONEncoder().encode(HelperClientAuthorization(uid: getuid(), requirement: requirement)) else {
+            return PrivilegedServiceResult(succeeded: false, message: String(localized: "The application signature could not be verified"))
+        }
         // `install` copies the quarantine xattr from a browser-downloaded bundle; launchd refuses
         // to load quarantined helpers with "Bootstrap failed: 5: Input/output error", so clear it.
         let commands = [
             "/usr/bin/install -d -o root -g wheel -m 755 /Library/PrivilegedHelperTools",
             "/usr/bin/install -o root -g wheel -m 755 \(quote(helper.path)) \(quote(installedHelper))",
             "/usr/bin/install -o root -g wheel -m 644 \(quote(launchDaemon.path)) \(quote(installedPlist))",
-            "/usr/bin/xattr -c \(quote(installedHelper)) >/dev/null 2>&1 || true",
-            "/usr/bin/xattr -c \(quote(installedPlist)) >/dev/null 2>&1 || true",
-            "/bin/launchctl bootout system \(quote(installedPlist)) >/dev/null 2>&1 || true",
+            "(/bin/echo \(quote(authorization.base64EncodedString())) | /usr/bin/base64 -D > \(quote(clientAuthorizationPath)))",
+            "/usr/sbin/chown root:wheel \(quote(clientAuthorizationPath))",
+            "/bin/chmod 600 \(quote(clientAuthorizationPath))",
+            "(/usr/bin/xattr -d com.apple.quarantine \(quote(installedHelper)) >/dev/null 2>&1 || true)",
+            "(/usr/bin/xattr -d com.apple.quarantine \(quote(installedPlist)) >/dev/null 2>&1 || true)",
+            "(/bin/launchctl bootout system \(quote(installedPlist)) >/dev/null 2>&1 || true)",
             "/bin/rm -f \(quote(socketPath))",
-            "/bin/launchctl enable system/\(helperLabel) >/dev/null 2>&1 || true",
+            "(/bin/launchctl enable system/\(helperLabel) >/dev/null 2>&1 || true)",
             "/bin/launchctl bootstrap system \(quote(installedPlist))"
         ]
-        switch AdministratorShell.run(commands.joined(separator: "; ")) {
+        switch AdministratorShell.run(commands.joined(separator: " && ")) {
         case .success:
             return PrivilegedServiceResult(succeeded: true, message: String(localized: "Background service installed"))
         case let .failure(failure):
@@ -121,6 +193,18 @@ enum PrivilegedService {
                 message: failure.isCancelled ? String(localized: "Administrator authorization cancelled") : failure.message
             )
         }
+    }
+
+    private static func clientRequirement() -> String? {
+        var code: SecCode?
+        var staticCode: SecStaticCode?
+        var requirement: SecRequirement?
+        var text: CFString?
+        guard SecCodeCopySelf([], &code) == errSecSuccess, let code,
+              SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode,
+              SecCodeCopyDesignatedRequirement(staticCode, [], &requirement) == errSecSuccess, let requirement,
+              SecRequirementCopyString(requirement, [], &text) == errSecSuccess else { return nil }
+        return text as String?
     }
 
     private static func serviceVersion() -> String? {

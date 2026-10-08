@@ -33,7 +33,7 @@ Reference policy: [App Review Guidelines](https://developer.apple.com/app-store/
 
 ## Direct Profile
 
-`scripts/package_app.sh` produces the Direct profile. Production releases should replace ad-hoc signing with a Developer ID Application identity, harden the runtime, notarize the archive, and staple the ticket. The fan/memory helper is a fixed-command daemon reached over a root-owned Unix socket; it only accepts `version`, `status`, `set-auto`, `set-rpm`, and `optimize-memory`. The app compares the daemon's protocol version on every privileged action and reinstalls it (one administrator prompt) when the bundled helper is newer.
+`scripts/package_app.sh` produces the Direct profile. Production releases should replace ad-hoc signing with a Developer ID Application identity, harden the runtime, notarize the archive, and staple the ticket. The shared helper (protocol v5) is reached over a root-owned Unix socket and verifies the caller's audit-token signing identity and authorizing user ID. It accepts fixed fan and memory-maintenance commands and restricted Trash requests, never arbitrary shell commands. The app reinstalls the helper with administrator authorization when its protocol or the app's signing identity changes.
 
 The Direct app may guide users to the macOS Full Disk Access pane. Permission remains user-controlled; WonderBox only probes whether a protected file can be opened and does not read its contents. Sandboxed builds suppress this onboarding and retain user-selected directory access.
 

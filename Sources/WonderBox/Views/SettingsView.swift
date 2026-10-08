@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("appearance") private var appearance = AppAppearance.system.rawValue
     @AppStorage("accent") private var accent = AccentChoice.ocean.rawValue
     @AppStorage("showMenuBar") private var showMenuBar = true
@@ -91,8 +92,9 @@ struct SettingsView: View {
                         }
                     }
 
-                    Divider()
+                }
 
+                settingsSection(String(localized: "Startup"), symbol: "power") {
                     Toggle(isOn: Binding(
                         get: { launchAtLogin.isEnabled },
                         set: { launchAtLogin.setEnabled($0) }
@@ -104,6 +106,11 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    if launchAtLogin.requiresApproval {
+                        Text("Approve WonderBox in System Settings to enable launch at login.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Button("Manage Login Items…") { launchAtLogin.openSettings() }
                 }
 
                 if let message = launchAtLogin.message {
@@ -153,7 +160,13 @@ struct SettingsView: View {
             .padding(28)
             .frame(maxWidth: 820, alignment: .leading)
         }
-        .onAppear { model.refreshFullDiskAccessStatus() }
+        .onAppear {
+            model.refreshFullDiskAccessStatus()
+            launchAtLogin.refresh()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { launchAtLogin.refresh() }
+        }
         .confirmationDialog(
             "Relaunch to change the language?",
             isPresented: $showLanguageRelaunch,

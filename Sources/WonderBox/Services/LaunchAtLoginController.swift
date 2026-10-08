@@ -5,6 +5,15 @@ import ServiceManagement
 final class LaunchAtLoginController: ObservableObject {
     @Published private(set) var isEnabled = SMAppService.mainApp.status == .enabled
     @Published private(set) var message: String?
+    @Published private(set) var requiresApproval = SMAppService.mainApp.status == .requiresApproval
+
+    func refresh() {
+        let status = SMAppService.mainApp.status
+        isEnabled = status == .enabled || status == .requiresApproval
+        requiresApproval = status == .requiresApproval
+    }
+
+    func openSettings() { SMAppService.openSystemSettingsLoginItems() }
 
     func setEnabled(_ enabled: Bool) {
         do {
@@ -13,10 +22,10 @@ final class LaunchAtLoginController: ObservableObject {
             } else {
                 try SMAppService.mainApp.unregister()
             }
-            isEnabled = SMAppService.mainApp.status == .enabled
+            refresh()
             message = nil
         } catch {
-            isEnabled = SMAppService.mainApp.status == .enabled
+            refresh()
             message = error.localizedDescription
         }
     }

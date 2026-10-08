@@ -1,11 +1,14 @@
 import Darwin
 import Foundation
+import IOKit
 import IOKit.ps
+import Metal
 
 struct SystemInformation: Sendable {
     let computerName: String
     let modelIdentifier: String
     let processorName: String
+    let graphicsName: String
     let operatingSystem: String
     let architecture: String
 
@@ -16,6 +19,7 @@ struct SystemInformation: Sendable {
             computerName: Host.current().localizedName ?? "Mac",
             modelIdentifier: sysctlString("hw.model") ?? "Mac",
             processorName: sysctlString("machdep.cpu.brand_string") ?? sysctlString("hw.model") ?? "Apple Silicon",
+            graphicsName: MTLCreateSystemDefaultDevice()?.name ?? "GPU",
             operatingSystem: os,
             architecture: sysctlString("hw.machine") ?? "arm64"
         )
@@ -75,6 +79,7 @@ enum SystemMonitor {
 
         let snapshot = MetricSnapshot(
             cpuUsage: min(1, max(0, cpuUsage)),
+            gpuUsage: gpuUsage(),
             memory: memoryBreakdown(),
             diskUsed: disk.used,
             diskTotal: disk.total,
@@ -83,10 +88,24 @@ enum SystemMonitor {
             batteryLevel: battery.level,
             isCharging: battery.charging,
             thermalState: ProcessInfo.processInfo.thermalState,
-            uptime: ProcessInfo.processInfo.systemUptime,
+            uptime: uptime(now: now),
             sampledAt: now
         )
         return SystemSample(snapshot: snapshot, counters: counters)
+    }
+
+    /// Like System Information's “Time since boot”, includes time spent asleep.
+    static func uptime(now: Date = Date()) -> TimeInterval {
+        var boot = timeval()
+        var size = MemoryLayout<timeval>.size
+        guard sysctlbyname("kern.boottime", &boot, &size, nil, 0) == 0 else {
+            return ProcessInfo.processInfo.systemUptime
+        }
+        return uptime(bootTime: TimeInterval(boot.tv_sec) + TimeInterval(boot.tv_usec) / 1_000_000, now: now)
+    }
+
+    static func uptime(bootTime: TimeInterval, now: Date) -> TimeInterval {
+        max(0, now.timeIntervalSince1970 - bootTime)
     }
 
     private static func delta(current: UInt64, previous: UInt64?) -> UInt64 {
@@ -108,6 +127,29 @@ enum SystemMonitor {
         let idle = UInt64(info.cpu_ticks.2)
         let nice = UInt64(info.cpu_ticks.3)
         return (user + system + idle + nice, idle)
+    }
+
+    /// Busiest GPU's utilization as reported by its IOAccelerator driver (the figure Activity Monitor
+    /// charts), or nil when no accelerator is registered, e.g. inside a virtual machine.
+    private static func gpuUsage() -> Double? {
+        var iterator: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOAccelerator"), &iterator) == KERN_SUCCESS else {
+            return nil
+        }
+        defer { IOObjectRelease(iterator) }
+
+        var busiest: Double?
+        var entry = IOIteratorNext(iterator)
+        while entry != 0 {
+            let statistics = IORegistryEntryCreateCFProperty(entry, "PerformanceStatistics" as CFString, kCFAllocatorDefault, 0)?
+                .takeRetainedValue() as? [String: Any]
+            if let percent = statistics?["Device Utilization %"] as? NSNumber {
+                busiest = max(busiest ?? 0, min(1, max(0, percent.doubleValue / 100)))
+            }
+            IOObjectRelease(entry)
+            entry = IOIteratorNext(iterator)
+        }
+        return busiest
     }
 
     static func memoryBreakdown() -> MemoryBreakdown {

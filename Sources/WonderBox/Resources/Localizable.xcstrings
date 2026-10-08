@@ -200,6 +200,16 @@
         }
       }
     },
+    "100% means one fully occupied CPU core; multi-core apps can exceed 100%.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "100% 表示占满一个 CPU 核心；多核应用的占用率可超过 100%。"
+          }
+        }
+      }
+    },
     "2 Hours": {
       "localizations": {
         "zh-Hans": {
@@ -464,6 +474,16 @@
         }
       }
     },
+    "Application Support": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用程序支持"
+          }
+        }
+      }
+    },
     "Application and diagnostic logs": {
       "localizations": {
         "zh-Hans": {
@@ -500,6 +520,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在应用"
+          }
+        }
+      }
+    },
+    "Approve WonderBox in System Settings to enable launch at login.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在系统设置中批准 WonderBox，以启用登录时启动。"
           }
         }
       }
@@ -624,6 +654,17 @@
           }
         }
       }
+    },
+    "Background service client authorization failed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后台服务客户端身份验证失败"
+          }
+        }
+      },
+      "extractionState": "manual"
     },
     "Background service failed to start": {
       "localizations": {
@@ -761,6 +802,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "缓存文件 %@"
+          }
+        }
+      }
+    },
+    "Caches": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存"
           }
         }
       }
@@ -1028,6 +1079,16 @@
         }
       }
     },
+    "Collapsed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已收起"
+          }
+        }
+      }
+    },
     "Compressed": {
       "localizations": {
         "zh-Hans": {
@@ -1064,6 +1125,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "建议关闭高占用任务"
+          }
+        }
+      }
+    },
+    "Containers": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "容器"
           }
         }
       }
@@ -1329,6 +1400,16 @@
         }
       }
     },
+    "Expanded": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已展开"
+          }
+        }
+      }
+    },
     "Extra categories start unselected and can be restored from the Trash": {
       "localizations": {
         "zh-Hans": {
@@ -1472,6 +1553,26 @@
         }
       }
     },
+    "Folder selection includes all its contents. Preview shows up to 100 items.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "勾选文件夹会包含其全部内容。预览最多显示 100 个项目。"
+          }
+        }
+      }
+    },
+    "Force Quit": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强制退出"
+          }
+        }
+      }
+    },
     "Force Quit %@": {
       "localizations": {
         "zh-Hans": {
@@ -1502,6 +1603,16 @@
         }
       }
     },
+    "Force quit this application?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强制退出此应用？"
+          }
+        }
+      }
+    },
     "Full Disk Access": {
       "localizations": {
         "zh-Hans": {
@@ -1528,6 +1639,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "完整扫描需要完全磁盘访问"
+          }
+        }
+      }
+    },
+    "GPU usage is sampled from driver counters. Concurrent GPU contexts can total more than 100%; this is not the overall device utilization.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GPU 占用率来自驱动计数器。并行 GPU 上下文的合计占用率可超过 100%；此数值不同于整机 GPU 利用率。"
           }
         }
       }
@@ -1674,6 +1795,27 @@
         }
       }
     },
+    "Invalid uninstall request": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卸载请求无效"
+          }
+        }
+      }
+    },
+    "Invalid uninstall response": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卸载响应无效"
+          }
+        }
+      },
+      "extractionState": "manual"
+    },
     "Items in the Finder Trash": {
       "localizations": {
         "zh-Hans": {
@@ -1814,6 +1956,16 @@
         }
       }
     },
+    "Live application usage, including helper processes": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时应用占用，包含辅助进程"
+          }
+        }
+      }
+    },
     "Live monitoring": {
       "localizations": {
         "zh-Hans": {
@@ -1830,6 +1982,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "日志文件"
+          }
+        }
+      }
+    },
+    "Logs and Reports": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日志与报告"
           }
         }
       }
@@ -1864,12 +2026,32 @@
         }
       }
     },
+    "Manage Login Items…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "管理登录项…"
+          }
+        }
+      }
+    },
     "Measuring process memory…": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "正在统计进程内存…"
+          }
+        }
+      }
+    },
+    "Measuring process usage…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在测量进程占用…"
           }
         }
       }
@@ -2020,6 +2202,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "已移入 %1$lld 项，%2$lld 项未处理"
+          }
+        }
+      }
+    },
+    "Moved %lld items to the Trash; %lld could not be removed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已将 %1$lld 项移入废纸篓，%2$lld 项无法移除"
           }
         }
       }
@@ -2345,6 +2537,16 @@
         }
       }
     },
+    "Other Files": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他文件"
+          }
+        }
+      }
+    },
     "Overview": {
       "localizations": {
         "zh-Hans": {
@@ -2405,6 +2607,16 @@
         }
       }
     },
+    "Preferences": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "偏好设置"
+          }
+        }
+      }
+    },
     "Pressure: %@": {
       "localizations": {
         "zh-Hans": {
@@ -2421,6 +2633,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "防止空闲睡眠"
+          }
+        }
+      }
+    },
+    "Preview %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预览 %@"
+          }
+        }
+      }
+    },
+    "Preview folder contents": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "预览文件夹内容"
           }
         }
       }
@@ -2539,6 +2771,16 @@
         }
       }
     },
+    "Reading fan sensors…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读取风扇传感器…"
+          }
+        }
+      }
+    },
     "Rebuildable cache data from apps and sandboxed containers": {
       "localizations": {
         "zh-Hans": {
@@ -2609,6 +2851,26 @@
         }
       }
     },
+    "Refresh process usage": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新进程占用"
+          }
+        }
+      }
+    },
+    "Refreshes every 3 seconds": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每 3 秒刷新"
+          }
+        }
+      }
+    },
     "Related Files": {
       "localizations": {
         "zh-Hans": {
@@ -2645,16 +2907,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "已释放 %@"
-          }
-        }
-      }
-    },
-    "Removed %lld items; %lld need higher privileges": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已移除 %1$lld 项，%2$lld 项需要更高权限"
           }
         }
       }
@@ -2962,6 +3214,26 @@
         }
       }
     },
+    "Startup": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开机启动"
+          }
+        }
+      }
+    },
+    "Startup and Helpers": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启动项与辅助程序"
+          }
+        }
+      }
+    },
     "Status Unknown": {
       "localizations": {
         "zh-Hans": {
@@ -2998,6 +3270,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "停止保持唤醒 · %@"
+          }
+        }
+      }
+    },
+    "Stopped · normal when the Mac is cool": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已停转 · 低温时属正常情况"
           }
         }
       }
@@ -3122,6 +3404,16 @@
         }
       }
     },
+    "The application signature could not be verified": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用签名验证失败"
+          }
+        }
+      }
+    },
     "The maintenance helper is not installed": {
       "localizations": {
         "zh-Hans": {
@@ -3233,6 +3525,16 @@
         }
       }
     },
+    "This GPU driver does not expose per-process usage; unavailable values are shown as —.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前 GPU 驱动未提供各进程的占用数据；不可用的数值显示为 —。"
+          }
+        }
+      }
+    },
     "This Mac does not expose SMC fan control": {
       "localizations": {
         "zh-Hans": {
@@ -3253,12 +3555,42 @@
         }
       }
     },
+    "Too many files in the uninstall request": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卸载请求中的文件过多"
+          }
+        }
+      }
+    },
     "Tools": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "工具"
+          }
+        }
+      }
+    },
+    "Top CPU Users": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU 占用排行"
+          }
+        }
+      }
+    },
+    "Top GPU Users": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GPU 占用排行"
           }
         }
       }
@@ -3373,6 +3705,16 @@
         }
       }
     },
+    "Unsaved changes may be lost.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未保存的更改可能丢失。"
+          }
+        }
+      }
+    },
     "Unsupported command": {
       "extractionState": "manual",
       "localizations": {
@@ -3470,6 +3812,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "等待下一次系统采样"
+          }
+        }
+      }
+    },
+    "Waiting for the next sample…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在等待下一次采样…"
           }
         }
       }

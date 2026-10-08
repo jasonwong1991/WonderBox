@@ -38,6 +38,17 @@ struct OverviewView: View {
                         progress: model.snapshot.cpuUsage,
                         history: model.cpuHistory
                     )
+                    if let gpuUsage = model.snapshot.gpuUsage {
+                        MetricCard(
+                            title: "GPU",
+                            value: AppFormatters.percent(gpuUsage),
+                            detail: model.systemInfo.graphicsName,
+                            symbol: "cube.transparent",
+                            tint: Color(hex: 0x7A67D8),
+                            progress: gpuUsage,
+                            history: model.gpuHistory
+                        )
+                    }
                     MetricCard(
                         title: String(localized: "Memory"),
                         value: AppFormatters.percent(model.snapshot.memoryFraction),
@@ -128,6 +139,7 @@ struct OverviewView: View {
             Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 16, verticalSpacing: 14) {
                 detailRow(String(localized: "Model"), model.systemInfo.modelIdentifier)
                 detailRow(String(localized: "Processor"), model.systemInfo.processorName)
+                detailRow("GPU", model.systemInfo.graphicsName)
                 detailRow(String(localized: "Architecture"), model.systemInfo.architecture)
                 detailRow(String(localized: "Operating System"), model.systemInfo.operatingSystem)
             }

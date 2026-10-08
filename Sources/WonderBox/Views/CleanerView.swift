@@ -80,7 +80,7 @@ struct CleanerView: View {
                 : String(localized: "Caches are rebuilt the next time an app runs; installers go to the Trash."))
         }
         .sheet(item: $detailKind) { kind in
-            CleanupDetailSheet(kind: kind)
+            CleanupDetailSheet(category: model.cleanupCategories.first { $0.kind == kind })
                 .environmentObject(model)
         }
     }
@@ -232,11 +232,16 @@ private struct CleanupCategoryRow: View {
 private struct CleanupDetailSheet: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
-    let kind: CleanupKind
+    let category: CleanupCategory?
+    @State private var selected: Set<URL>
 
-    private var category: CleanupCategory? {
-        model.cleanupCategories.first { $0.kind == kind }
+    init(category: CleanupCategory?) {
+        self.category = category
+        _selected = State(initialValue: Set(category?.items.filter(\.isSelected).map(\.id) ?? []))
     }
+
+    private var kind: CleanupKind { category?.kind ?? .caches }
+    private var allSelected: Bool { !(category?.items.isEmpty ?? true) && category?.items.allSatisfy { selected.contains($0.id) } == true }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -249,10 +254,17 @@ private struct CleanupDetailSheet: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Select All") { setAll(true) }
-                Button("Deselect All") { setAll(false) }
-                Button("Done") { dismiss() }
-                    .keyboardShortcut(.defaultAction)
+                Button(allSelected ? "Deselect All" : "Select All") {
+                    selected = allSelected ? [] : Set(category?.items.map(\.id) ?? [])
+                }
+                .disabled(category?.items.isEmpty ?? true)
+                Button("Close") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Done") {
+                    model.applyCleanupSelection(kind: kind, selection: selected, displayedItems: Set(category?.items.map(\.id) ?? []))
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
             }
             .padding(20)
 
@@ -263,11 +275,12 @@ private struct CleanupDetailSheet: View {
                     ForEach(category?.items ?? []) { item in
                         HStack(spacing: 12) {
                             Toggle("", isOn: Binding(
-                                get: { item.isSelected },
-                                set: { model.setCleanupItem(kind: kind, item: item, selected: $0) }
+                                get: { selected.contains(item.id) },
+                                set: { if $0 { selected.insert(item.id) } else { selected.remove(item.id) } }
                             ))
                             .toggleStyle(.checkbox)
                             .labelsHidden()
+                            .accessibilityLabel("Select \(item.url.lastPathComponent)")
                             Image(systemName: item.isDirectory ? "folder" : "doc")
                                 .foregroundStyle(kind.tint)
                                 .frame(width: 24)
@@ -310,10 +323,5 @@ private struct CleanupDetailSheet: View {
             }
         }
         .frame(minWidth: 720, minHeight: 520)
-    }
-
-    private func setAll(_ selected: Bool) {
-        guard let category else { return }
-        model.setCleanupCategory(category, selected: selected)
     }
 }

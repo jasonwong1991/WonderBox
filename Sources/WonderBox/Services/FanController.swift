@@ -26,6 +26,20 @@ enum FanController {
         }
     }
 
+    /// SMC may return an empty/zero sample while waking on the first connection. Re-read instead
+    /// of displaying that transient sample. A confirmed zero remains valid (fans can stop at idle).
+    static func initialReadings(retry: Bool, read: () -> [FanReading] = readFans,
+                                pause: () -> Void = { Thread.sleep(forTimeInterval: 0.15) }) -> [FanReading] {
+        var readings = read()
+        guard retry else { return readings }
+        for _ in 0..<3 where readings.isEmpty || readings.allSatisfy({ $0.currentRPM == 0 }) {
+            pause()
+            let next = read()
+            if !next.isEmpty { readings = next }
+        }
+        return readings
+    }
+
     @MainActor
     static func apply(mode: FanMode, customRPM: Double, fans: [FanReading]) async -> FanApplyResult {
         guard !fans.isEmpty else {

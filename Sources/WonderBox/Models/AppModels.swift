@@ -4,6 +4,8 @@ import SwiftUI
 enum AppSection: String, CaseIterable, Identifiable {
     case overview
     case memory
+    case cpu
+    case gpu
     case fan
     case awake
     case applications
@@ -17,6 +19,8 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .overview: String(localized: "Overview")
         case .memory: String(localized: "Memory")
+        case .cpu: "CPU"
+        case .gpu: "GPU"
         case .fan: String(localized: "Fan")
         case .awake: String(localized: "Keep Awake")
         case .applications: String(localized: "Uninstaller")
@@ -30,6 +34,8 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .overview: "square.grid.2x2"
         case .memory: "memorychip"
+        case .cpu: "cpu"
+        case .gpu: "cube.transparent"
         case .fan: "fan"
         case .awake: "moon.zzz"
         case .applications: "shippingbox"
@@ -43,6 +49,8 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .overview: Color(hex: 0x3178F6)
         case .memory: Color(hex: 0xD4568F)
+        case .cpu: Color(hex: 0x3178F6)
+        case .gpu: Color(hex: 0x7A67D8)
         case .fan: Color(hex: 0x13A58D)
         case .awake: Color(hex: 0xF18B43)
         case .applications: Color(hex: 0x7A67D8)
@@ -55,6 +63,8 @@ enum AppSection: String, CaseIterable, Identifiable {
 
 struct MetricSnapshot: Equatable, Sendable {
     var cpuUsage: Double = 0
+    /// Nil when the machine exposes no GPU accelerator.
+    var gpuUsage: Double? = nil
     var memory = MemoryBreakdown()
     var diskUsed: UInt64 = 0
     var diskTotal: UInt64 = 0
@@ -63,7 +73,7 @@ struct MetricSnapshot: Equatable, Sendable {
     var batteryLevel: Double? = nil
     var isCharging = false
     var thermalState: ProcessInfo.ThermalState = .nominal
-    var uptime: TimeInterval = ProcessInfo.processInfo.systemUptime
+    var uptime: TimeInterval = SystemMonitor.uptime()
     var sampledAt = Date()
 
     var memoryFraction: Double { memory.usedFraction }
@@ -376,6 +386,13 @@ struct CleanupCategory: Identifiable, Equatable, Sendable {
     var locations: [URL]
     var items: [CleanupItem] = []
     var accessMessage: String? = nil
+
+    mutating func applySelection(_ selected: Set<URL>, displayedItems: Set<URL>) {
+        for index in items.indices where displayedItems.contains(items[index].id) {
+            items[index].isSelected = selected.contains(items[index].id)
+        }
+        isSelected = items.contains(where: \.isSelected)
+    }
 
     /// Items whose size estimate timed out; the category total is a lower bound while any exist.
     var unsizedItemCount: Int {

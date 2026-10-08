@@ -122,62 +122,109 @@ enum ApplicationScanner {
     }
 
     static func relatedFiles(for application: InstalledApplication) -> [RelatedFile] {
-        let manager = FileManager.default
-        let library = manager.homeDirectoryForCurrentUser.appendingPathComponent("Library", isDirectory: true)
-        let identifiers = [application.bundleIdentifier, application.name].compactMap { value -> String? in
-            guard let value, !value.isEmpty else { return nil }
-            return value
-        }
-        var candidates: [URL] = []
-
-        for identifier in identifiers {
-            candidates.append(contentsOf: [
-                library.appendingPathComponent("Caches/\(identifier)"),
-                library.appendingPathComponent("Application Support/\(identifier)"),
-                library.appendingPathComponent("Logs/\(identifier)"),
-                library.appendingPathComponent("WebKit/\(identifier)"),
-                library.appendingPathComponent("HTTPStorages/\(identifier)"),
-                library.appendingPathComponent("Containers/\(identifier)"),
-                library.appendingPathComponent("Application Scripts/\(identifier)")
-            ])
-        }
-        if let identifier = application.bundleIdentifier {
-            candidates.append(library.appendingPathComponent("Preferences/\(identifier).plist"))
-            candidates.append(library.appendingPathComponent("Saved Application State/\(identifier).savedState"))
-        }
-
-        var seen = Set<String>()
-        return candidates.compactMap { url in
-            let standardized = url.standardizedFileURL
-            guard manager.fileExists(atPath: standardized.path),
-                  seen.insert(standardized.path).inserted
-            else { return nil }
-            return RelatedFile(
-                url: standardized,
-                displayPath: "~/" + standardized.path.replacingOccurrences(of: manager.homeDirectoryForCurrentUser.path + "/", with: ""),
-                size: FileSystemScanner.allocatedSize(of: standardized)
+        let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL
+        let homePrefix = home.path + "/"
+        let candidates = relatedFileCandidates(
+            for: application,
+            home: home,
+            systemLibrary: URL(fileURLWithPath: "/Library", isDirectory: true),
+            temporaryDirectories: [_CS_DARWIN_USER_CACHE_DIR, _CS_DARWIN_USER_TEMP_DIR].compactMap(darwinUserDirectory)
+        )
+        return candidates.map { url in
+            RelatedFile(
+                url: url,
+                displayPath: url.path.hasPrefix(homePrefix) ? "~/" + url.path.dropFirst(homePrefix.count) : url.path,
+                size: FileSystemScanner.allocatedSize(of: url)
             )
         }.sorted { $0.size > $1.size }
     }
 
-    static func uninstall(application: InstalledApplication, relatedFiles: [RelatedFile]) -> String {
+    /// Direct children of the well-known support directories that belong to `application`. Only the
+    /// first level is inspected: deeper walks are slow and start matching unrelated data.
+    static func relatedFileCandidates(
+        for application: InstalledApplication,
+        home: URL,
+        systemLibrary: URL,
+        temporaryDirectories: [URL]
+    ) -> [URL] {
+        let library = home.appendingPathComponent("Library", isDirectory: true)
+        var rules: [(root: URL, matches: (String) -> Bool)] = []
+
+        if let identifier = application.bundleIdentifier, !identifier.isEmpty {
+            let byIdentifier: (String) -> Bool = { belongs($0, toIdentifier: identifier) }
+            let userRoots = [
+                "Application Scripts", "Application Support", "Caches", "Containers", "Cookies", "Group Containers",
+                "HTTPStorages", "LaunchAgents", "Logs", "Preferences", "Preferences/ByHost", "Saved Application State", "WebKit"
+            ].map { library.appendingPathComponent($0, isDirectory: true) }
+            let systemRoots = [
+                "Application Support", "Caches", "LaunchAgents", "LaunchDaemons", "Logs", "Preferences", "PrivilegedHelperTools"
+            ].map { systemLibrary.appendingPathComponent($0, isDirectory: true) }
+            rules += (userRoots + systemRoots + temporaryDirectories).map { ($0, byIdentifier) }
+        }
+
+        // Apps outside the sandbox often name their folders after the product instead of the bundle identifier.
+        let names = Set([application.name, application.url.deletingPathExtension().lastPathComponent].map { $0.lowercased() })
+        let byName: (String) -> Bool = { names.contains($0.lowercased()) }
+        rules += ["Application Support", "Caches", "Logs"].map { (library.appendingPathComponent($0, isDirectory: true), byName) }
+        rules += ["Application Support", "Logs"].map { (systemLibrary.appendingPathComponent($0, isDirectory: true), byName) }
+        // Crash reports are keyed by process name: "<Name>_<host>.plist", "<Name>-2024-01-01-120000.ips".
+        let byNamePrefix: (String) -> Bool = { fileName in
+            let lowercased = fileName.lowercased()
+            return names.contains { lowercased.hasPrefix($0 + "_") || lowercased.hasPrefix($0 + "-") }
+        }
+        rules += [
+            (library.appendingPathComponent("Application Support/CrashReporter", isDirectory: true), byNamePrefix),
+            (library.appendingPathComponent("Logs/DiagnosticReports", isDirectory: true), byNamePrefix)
+        ]
+
+        var seen = Set<String>()
+        var result: [URL] = []
+        for rule in rules {
+            for url in FileSystemScanner.children(of: rule.root) where rule.matches(url.lastPathComponent) {
+                if Task.isCancelled { return result }
+                let standardized = url.standardizedFileURL
+                if seen.insert(standardized.path).inserted { result.append(standardized) }
+            }
+        }
+        return result
+    }
+
+    /// "com.foo.app" owns "com.foo.app", "com.foo.app.plist", "com.foo.app.Helper.savedState" and
+    /// "TEAMID.com.foo.app" (group containers), but not "com.foo.appstore".
+    static func belongs(_ fileName: String, toIdentifier identifier: String) -> Bool {
+        let fileName = fileName.lowercased()
+        let identifier = identifier.lowercased()
+        // A single-word identifier ("Electron") is too generic to look for in the middle of other names.
+        guard identifier.contains(".") else { return fileName == identifier || fileName.hasPrefix(identifier + ".") }
+        return ".\(fileName).".contains(".\(identifier).")
+    }
+
+    /// Per-user cache (`…/C`) and temporary (`…/T`) directories under /var/folders.
+    private static func darwinUserDirectory(_ name: Int32) -> URL? {
+        var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
+        guard confstr(name, &buffer, buffer.count) > 0 else { return nil }
+        return URL(fileURLWithPath: String(cString: buffer), isDirectory: true)
+    }
+
+    struct UninstallOutcome: Sendable {
+        var trashed = 0
+        /// Items the current user may not move, typically root-owned bundles from package installers.
+        var failed: [URL] = []
+    }
+
+    static func uninstall(application: InstalledApplication, relatedFiles: [RelatedFile]) -> UninstallOutcome {
         let manager = FileManager.default
-        var removed = 0
-        var failures: [String] = []
-        for url in [application.url] + relatedFiles.map(\.url) {
-            guard manager.fileExists(atPath: url.path) else { continue }
+        var outcome = UninstallOutcome()
+        for url in [application.url] + relatedFiles.map(\.url) where manager.fileExists(atPath: url.path) {
             do {
                 var result: NSURL?
                 try manager.trashItem(at: url, resultingItemURL: &result)
-                removed += 1
+                outcome.trashed += 1
             } catch {
-                failures.append(url.lastPathComponent)
+                outcome.failed.append(url)
             }
         }
-        if failures.isEmpty {
-            return String(localized: "Moved \(removed) items to the Trash")
-        }
-        return String(localized: "Removed \(removed) items; \(failures.count) need higher privileges")
+        return outcome
     }
 
     static func installedBundleIdentifiers() -> Set<String> {
@@ -695,31 +742,71 @@ enum StorageCleaner {
     }
 
     private static func installerFiles(in directory: URL) -> [URL] {
+        let output = CommandRunner.output(
+            of: "/usr/bin/find",
+            arguments: [
+                directory.path,
+                "-maxdepth", "1",
+                "-type", "f",
+                "(",
+                "-iname", "*.dmg", "-o",
+                "-iname", "*.pkg", "-o",
+                "-iname", "*.zip", "-o",
+                "-iname", "*.xip",
+                ")",
+                "-mtime", "+7",
+                "-print0"
+            ],
+            timeout: 1
+        )
+        return output.split(separator: 0)
+            .map { URL(fileURLWithPath: String(decoding: $0, as: UTF8.self)) }
+            .filter { $0.pathExtension.lowercased() != "zip" || zipContainsInstaller($0) }
+    }
+
+    /// Zip archives are ambiguous: only those holding an app bundle or installer package are
+    /// downloads that can be discarded; photo exports and project archives are not.
+    private static func zipContainsInstaller(_ url: URL) -> Bool {
+        // `zipinfo -1` lists entry paths from the central directory without extracting anything.
+        let listing = CommandRunner.output(of: "/usr/bin/zipinfo", arguments: ["-1", url.path], timeout: 2)
+        return archiveEntriesContainInstaller(String(decoding: listing, as: UTF8.self).split(separator: "\n"))
+    }
+
+    static func archiveEntriesContainInstaller<S: StringProtocol>(_ entries: [S]) -> Bool {
+        entries.contains { entry in
+            entry.split(separator: "/").contains { component in
+                let lowercased = component.lowercased()
+                return lowercased.hasSuffix(".app") || lowercased.hasSuffix(".pkg") || lowercased.hasSuffix(".mpkg") || lowercased.hasSuffix(".dmg")
+            }
+        }
+    }
+}
+
+enum CommandRunner {
+    /// Standard output of `executable`, possibly partial if it did not finish within `timeout`;
+    /// empty if it could not be launched.
+    static func output(of executable: String, arguments: [String], timeout: TimeInterval) -> Data {
         let process = Process()
-        let output = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/find")
-        process.arguments = [
-            directory.path,
-            "-maxdepth", "1",
-            "-type", "f",
-            "(",
-            "-iname", "*.dmg", "-o",
-            "-iname", "*.pkg", "-o",
-            "-iname", "*.zip", "-o",
-            "-iname", "*.xip",
-            ")",
-            "-mtime", "+7",
-            "-print0"
-        ]
-        process.standardOutput = output
+        let pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
         do {
             try process.run()
         } catch {
-            return []
+            return Data()
         }
 
-        let deadline = Date().addingTimeInterval(1)
+        // Drain concurrently so a chatty command never stalls on a full pipe until the deadline.
+        var data = Data()
+        let drained = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .utility).async {
+            data = pipe.fileHandleForReading.readDataToEndOfFile()
+            drained.signal()
+        }
+
+        let deadline = Date().addingTimeInterval(timeout)
         while process.isRunning, Date() < deadline {
             Thread.sleep(forTimeInterval: 0.03)
         }
@@ -731,11 +818,8 @@ enum StorageCleaner {
             kill(process.processIdentifier, SIGKILL)
         }
         process.waitUntilExit()
-
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        return data.split(separator: 0).map {
-            URL(fileURLWithPath: String(decoding: $0, as: UTF8.self))
-        }
+        drained.wait()
+        return data
     }
 }
 
@@ -863,34 +947,8 @@ enum DirectorySizeEstimator {
         timeout: TimeInterval,
         ignoringNames: Set<String>
     ) -> [String: UInt64] {
-        let process = Process()
-        let output = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/du")
         let exclusions = ignoringNames.sorted().flatMap { ["-I", $0] }
-        process.arguments = ["-sk"] + exclusions + urls.map(\.path)
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-
-        do {
-            try process.run()
-        } catch {
-            return [:]
-        }
-
-        let deadline = Date().addingTimeInterval(timeout)
-        while process.isRunning, Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.04)
-        }
-        if process.isRunning {
-            process.terminate()
-            Thread.sleep(forTimeInterval: 0.08)
-        }
-        if process.isRunning {
-            kill(process.processIdentifier, SIGKILL)
-        }
-        process.waitUntilExit()
-
-        let data = output.fileHandleForReading.readDataToEndOfFile()
+        let data = CommandRunner.output(of: "/usr/bin/du", arguments: ["-sk"] + exclusions + urls.map(\.path), timeout: timeout)
         guard let text = String(data: data, encoding: .utf8) else { return [:] }
         var result: [String: UInt64] = [:]
         for line in text.split(separator: "\n") {

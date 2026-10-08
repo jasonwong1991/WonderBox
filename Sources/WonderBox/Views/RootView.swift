@@ -17,6 +17,10 @@ struct RootView: View {
                         Label {
                             Text(section.title)
                                 .font(.system(size: 14, weight: .medium))
+                                .lineLimit(1)
+                                // Sonoma's sidebar list can propose a near-zero width to the title on its first
+                                // layout pass, leaving only "…"; the intrinsic width is always available here.
+                                .fixedSize(horizontal: true, vertical: false)
                         } icon: {
                             Image(systemName: section.symbol)
                                 .symbolRenderingMode(.hierarchical)
@@ -111,6 +115,8 @@ struct RootView: View {
         switch model.selection ?? .overview {
         case .overview: OverviewView()
         case .memory: MemoryView()
+        case .cpu: ProcessorView(kind: .cpu)
+        case .gpu: ProcessorView(kind: .gpu)
         case .fan: FanView()
         case .awake: AwakeView()
         case .applications: ApplicationsView()

@@ -14,6 +14,7 @@ let package = Package(
         .executable(name: "WonderMaintenanceHelper", targets: ["WonderMaintenanceHelper"])
     ],
     targets: [
+        .target(name: "WonderSupport", path: "Sources/WonderSupport"),
         .target(
             name: "CSMC",
             path: "Sources/CSMC",
@@ -24,7 +25,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "WonderBox",
-            dependencies: ["CSMC"],
+            dependencies: ["CSMC", "WonderSupport"],
             path: "Sources/WonderBox",
             // String catalogs are compiled into the app bundle by scripts/package_app.sh;
             // `swift build` would only copy the raw .xcstrings, which Foundation cannot load.
@@ -40,13 +41,16 @@ let package = Package(
                 .linkedFramework("AppKit"),
                 .linkedFramework("CoreServices"),
                 .linkedFramework("IOKit"),
+                .linkedFramework("Metal"),
+                .linkedFramework("Security"),
                 .linkedFramework("Charts")
             ]
         ),
         .executableTarget(
             name: "WonderFanHelper",
-            dependencies: ["CSMC"],
-            path: "Sources/WonderFanHelper"
+            dependencies: ["CSMC", "WonderSupport"],
+            path: "Sources/WonderFanHelper",
+            linkerSettings: [.linkedFramework("Security")]
         ),
         .executableTarget(
             name: "WonderMaintenanceHelper",
@@ -54,7 +58,7 @@ let package = Package(
         ),
         .testTarget(
             name: "WonderBoxTests",
-            dependencies: ["WonderBox"],
+            dependencies: ["WonderBox", "WonderSupport"],
             path: "Tests/WonderBoxTests"
         )
     ],

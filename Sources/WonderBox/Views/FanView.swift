@@ -19,7 +19,7 @@ struct FanView: View {
 
                 HStack {
                     StatusPill(
-                        text: model.fans.isEmpty ? String(localized: "Not supported on this Mac") : String(localized: "\(model.fans.count) fans connected"),
+                        text: !model.hasReadFans ? String(localized: "Reading fan sensors…") : model.fans.isEmpty ? String(localized: "Not supported on this Mac") : String(localized: "\(model.fans.count) fans connected"),
                         color: model.fans.isEmpty ? .secondary : .healthy,
                         symbol: model.fans.isEmpty ? "fan.slash" : "fan.fill"
                     )
@@ -27,7 +27,11 @@ struct FanView: View {
                     StatusPill(text: String(localized: "Direct build module"), color: Color(hex: 0x7A67D8), symbol: "lock.shield")
                 }
 
-                if model.fans.isEmpty {
+                if !model.hasReadFans {
+                    ProgressView("Reading fan sensors…")
+                        .frame(maxWidth: .infinity, minHeight: 210)
+                        .appPanel()
+                } else if model.fans.isEmpty {
                     EmptyContentView(
                         symbol: "fan.slash",
                         title: String(localized: "No Fan Sensors Found"),
@@ -118,13 +122,12 @@ private struct FanGaugeCard: View {
     let fan: FanReading
 
     private var range: ClosedRange<Double> {
-        let minimum = max(0, fan.minimumRPM)
-        return minimum...max(minimum + 1, fan.maximumRPM)
+        0...max(1, fan.maximumRPM)
     }
 
     var body: some View {
         HStack(spacing: 18) {
-            Gauge(value: fan.currentRPM, in: range) {
+            Gauge(value: min(range.upperBound, max(0, fan.currentRPM)), in: range) {
                 Image(systemName: "fan.fill")
             }
             .gaugeStyle(.accessoryCircularCapacity)
@@ -142,6 +145,10 @@ private struct FanGaugeCard: View {
                 Text("RPM · \(Int(fan.minimumRPM))–\(Int(fan.maximumRPM))")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
+                if fan.currentRPM == 0 {
+                    Text("Stopped · normal when the Mac is cool")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
             Spacer()
         }
