@@ -434,7 +434,7 @@ private struct RelatedFileGroupView: View {
 }
 
 /// Native mixed state distinguishes a partially selected folder from a fully selected one.
-private struct MixedSelectionCheckbox: NSViewRepresentable {
+struct MixedSelectionCheckbox: NSViewRepresentable {
     let selected: Int
     let total: Int
     let action: () -> Void
@@ -446,6 +446,7 @@ private struct MixedSelectionCheckbox: NSViewRepresentable {
     }
     func updateNSView(_ button: NSButton, context: Context) {
         context.coordinator.action = action
+        button.isEnabled = context.environment.isEnabled
         button.state = selected == 0 ? .off : selected == total ? .on : .mixed
     }
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSButton, context: Context) -> CGSize? {

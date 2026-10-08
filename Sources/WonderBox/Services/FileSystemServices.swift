@@ -338,11 +338,13 @@ enum StorageCleaner {
         let downloadsRoot = home.appendingPathComponent("Downloads", isDirectory: true)
 
         var locations: [(CleanupKind, [URL], Bool)] = [
-            (.caches, FileSystemScanner.children(of: cacheRoot) + sandboxedCaches(), CleanupKind.caches.isSelectedByDefault),
+            (.caches, (FileSystemScanner.children(of: cacheRoot) + sandboxedCaches()).filter { MessagingCacheScanner.owner(of: $0, home: home) == nil }, CleanupKind.caches.isSelectedByDefault),
             (.systemCaches, FileSystemScanner.children(of: systemCacheRoot), CleanupKind.systemCaches.isSelectedByDefault),
             (.logs, FileSystemScanner.children(of: logRoot), CleanupKind.logs.isSelectedByDefault),
             (.developer, FileSystemScanner.children(of: developerRoot), CleanupKind.developer.isSelectedByDefault),
-            (.installers, installerFiles(in: downloadsRoot), CleanupKind.installers.isSelectedByDefault)
+            (.installers, installerFiles(in: downloadsRoot), CleanupKind.installers.isSelectedByDefault),
+            (.wechatCaches, MessagingCacheScanner.locations(for: .wechat, home: home), false),
+            (.wecomCaches, MessagingCacheScanner.locations(for: .wecom, home: home), false)
         ]
         var packageLocations: [URL] = []
         if mode == .deep {
@@ -353,7 +355,7 @@ enum StorageCleaner {
                 (.deviceBackups, FileSystemScanner.children(of: deviceBackupRoot), false),
                 (.developerDeep, developerDeepLocations(), false),
                 (.packageCaches, packageLocations, false),
-                (.browserCaches, browserCaches(runningApplications: runningApplications), false),
+                (.browserCaches, browserCaches(runningApplications: runningApplications).filter { MessagingCacheScanner.owner(of: $0, home: home) == nil }, false),
                 (.partialDownloads, partialDownloadFiles(in: downloadsRoot), false)
             ])
         }
@@ -375,6 +377,12 @@ enum StorageCleaner {
         var categories = locations.map { kind, urls, selected in
             makeCategory(kind, locations: urls, selected: selected, estimates: estimates)
         }
+        for index in categories.indices {
+            guard let application = MessagingApplication.allCases.first(where: { $0.kind == categories[index].kind }),
+                  application.isRunning(runningApplications) else { continue }
+            categories[index].accessMessage = String(localized: "Quit \(application.name) and rescan before cleaning its caches")
+        }
+        CacheApplicationCatalog.attribute(&categories, home: home, catalog: CacheApplicationCatalog.discover())
         let trash = FinderTrashService.snapshot()
         categories.append(CleanupCategory(
             kind: .trash,
@@ -388,11 +396,13 @@ enum StorageCleaner {
         return categories
     }
 
-    static func clean(_ categories: [CleanupCategory]) -> String {
+    static func clean(_ categories: [CleanupCategory], runningApplications: Set<String> = [],
+                      runningMessagingApplications: () -> Set<MessagingApplication> = MessagingProcessInspector.current) -> String {
         let manager = FileManager.default
         var removed: UInt64 = 0
         var removedCount = 0
         var failedCount = 0
+        var skippedRunning = 0
 
         // Empty the existing Trash before moving new recoverable items into it.
         if let trash = categories.first(where: { $0.kind == .trash }) {
@@ -409,9 +419,25 @@ enum StorageCleaner {
             let selectedItems: [(url: URL, size: UInt64)] = category.items.isEmpty
                 ? category.locations.map { ($0, 0) }
                 : category.items.filter(\.isSelected).map { ($0.url, $0.size) }
+            if let application = MessagingApplication.allCases.first(where: { $0.kind == category.kind }),
+               category.accessMessage != nil || application.isRunning(runningApplications) || runningMessagingApplications().contains(application) {
+                skippedRunning += selectedItems.count
+                continue
+            }
             for item in selectedItems where isSafe(item.url, for: category.kind) {
                 if Task.isCancelled { break }
+                // Never let a stale generic-cache selection bypass the messaging app policy.
+                if let owner = MessagingCacheScanner.owner(of: item.url, home: home), owner.isRunning(runningApplications) {
+                    skippedRunning += 1
+                    continue
+                }
                 let itemSize = item.size > 0 ? item.size : FileSystemScanner.allocatedSize(of: item.url)
+                // Finder authorization or size estimation can take seconds. Re-read process state
+                // immediately before the move, not just from the snapshot taken at confirmation.
+                if let owner = MessagingCacheScanner.owner(of: item.url, home: home), runningMessagingApplications().contains(owner) {
+                    skippedRunning += 1
+                    continue
+                }
                 do {
                     if category.kind.movesToTrash {
                         var result: NSURL?
@@ -427,10 +453,10 @@ enum StorageCleaner {
             }
         }
 
-        if failedCount > 0 {
-            return String(localized: "Cleaned \(removedCount) items; \(failedCount) are protected by the system")
-        }
-        return String(localized: "Cleaned \(removedCount) items, freeing about \(AppFormatters.bytes(removed))")
+        let result = failedCount > 0
+            ? String(localized: "Cleaned \(removedCount) items; \(failedCount) are protected by the system")
+            : String(localized: "Cleaned \(removedCount) items, freeing about \(AppFormatters.bytes(removed))")
+        return skippedRunning > 0 ? result + " · " + String(localized: "Skipped \(skippedRunning) caches because the app is running") : result
     }
 
     static func isSafe(_ url: URL, for kind: CleanupKind) -> Bool {
@@ -440,9 +466,12 @@ enum StorageCleaner {
         }
         switch kind {
         case .caches:
-            return underAllowedRoot || isSandboxedCachePath(path, library: home.appendingPathComponent("Library"))
+            return MessagingCacheScanner.owner(of: url, home: home) == nil
+                && (underAllowedRoot || isSandboxedCachePath(path, library: home.appendingPathComponent("Library")))
+        case .wechatCaches: return MessagingCacheScanner.isSafe(url, for: .wechat, home: home)
+        case .wecomCaches: return MessagingCacheScanner.isSafe(url, for: .wecom, home: home)
         case .browserCaches:
-            return underAllowedRoot && isBrowserCacheDirectory(url)
+            return MessagingCacheScanner.owner(of: url, home: home) == nil && underAllowedRoot && isBrowserCacheDirectory(url)
         default:
             return underAllowedRoot
         }
@@ -538,6 +567,7 @@ enum StorageCleaner {
             return packageCacheRoots().map(\.path)
         case .browserCaches:
             return [library.appendingPathComponent("Application Support").path]
+        case .wechatCaches, .wecomCaches: return [] // Validated by the messaging-specific path rules.
         case .trash:
             return [home.appendingPathComponent(".Trash").path]
         }
@@ -785,7 +815,10 @@ enum StorageCleaner {
 enum CommandRunner {
     /// Standard output of `executable`, possibly partial if it did not finish within `timeout`;
     /// empty if it could not be launched.
-    static func output(of executable: String, arguments: [String], timeout: TimeInterval) -> Data {
+    static func output(of executable: String, arguments: [String], timeout: TimeInterval,
+                       isCancelled: @Sendable () -> Bool = { Task.isCancelled },
+                       requireSuccessfulExit: Bool = false) -> Data {
+        guard !isCancelled() else { return Data() }
         let process = Process()
         let pipe = Pipe()
         process.executableURL = URL(fileURLWithPath: executable)
@@ -807,7 +840,7 @@ enum CommandRunner {
         }
 
         let deadline = Date().addingTimeInterval(timeout)
-        while process.isRunning, Date() < deadline {
+        while process.isRunning, Date() < deadline, !isCancelled() {
             Thread.sleep(forTimeInterval: 0.03)
         }
         if process.isRunning {
@@ -819,6 +852,7 @@ enum CommandRunner {
         }
         process.waitUntilExit()
         drained.wait()
+        if requireSuccessfulExit, process.terminationStatus != 0 { return Data() }
         return data
     }
 }
@@ -904,7 +938,9 @@ enum DirectorySizeEstimator {
         _ urls: [URL],
         timeout: TimeInterval,
         ignoringNames: Set<String> = [],
-        individually: Bool = false
+        individually: Bool = false,
+        isCancelled: @escaping @Sendable () -> Bool = { Task.isCancelled },
+        requireSuccessfulExit: Bool = false
     ) -> [String: UInt64] {
         guard !urls.isEmpty else { return [:] }
         let workerCount = min(4, urls.count)
@@ -925,8 +961,8 @@ enum DirectorySizeEstimator {
                     let index = next
                     next += 1
                     indexLock.unlock()
-                    guard index < urls.count else { return }
-                    merge(runDU(for: [urls[index]], timeout: timeout, ignoringNames: ignoringNames))
+                    guard index < urls.count, !isCancelled() else { return }
+                    merge(runDU(for: [urls[index]], timeout: timeout, ignoringNames: ignoringNames, isCancelled: isCancelled, requireSuccessfulExit: requireSuccessfulExit))
                 }
             }
             return combined
@@ -937,7 +973,8 @@ enum DirectorySizeEstimator {
             groups[index % workerCount].append(url)
         }
         DispatchQueue.concurrentPerform(iterations: workerCount) { index in
-            merge(runDU(for: groups[index], timeout: timeout, ignoringNames: ignoringNames))
+            guard !isCancelled() else { return }
+            merge(runDU(for: groups[index], timeout: timeout, ignoringNames: ignoringNames, isCancelled: isCancelled, requireSuccessfulExit: requireSuccessfulExit))
         }
         return combined
     }
@@ -945,10 +982,12 @@ enum DirectorySizeEstimator {
     private static func runDU(
         for urls: [URL],
         timeout: TimeInterval,
-        ignoringNames: Set<String>
+        ignoringNames: Set<String>,
+        isCancelled: @Sendable () -> Bool,
+        requireSuccessfulExit: Bool
     ) -> [String: UInt64] {
         let exclusions = ignoringNames.sorted().flatMap { ["-I", $0] }
-        let data = CommandRunner.output(of: "/usr/bin/du", arguments: ["-sk"] + exclusions + urls.map(\.path), timeout: timeout)
+        let data = CommandRunner.output(of: "/usr/bin/du", arguments: ["-sk"] + exclusions + urls.map(\.path), timeout: timeout, isCancelled: isCancelled, requireSuccessfulExit: requireSuccessfulExit)
         guard let text = String(data: data, encoding: .utf8) else { return [:] }
         var result: [String: UInt64] = [:]
         for line in text.split(separator: "\n") {

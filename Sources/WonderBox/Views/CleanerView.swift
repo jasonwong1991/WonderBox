@@ -76,8 +76,8 @@ struct CleanerView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(model.cleanupScanMode == .deep
-                ? String(localized: "App leftovers, backups and downloads go to the Trash; caches are deleted and rebuilt on demand.")
-                : String(localized: "Caches are rebuilt the next time an app runs; installers go to the Trash."))
+                    ? String(localized: "App leftovers, backups, downloads and messaging caches go to the Trash; other caches are deleted and rebuilt on demand.")
+                : String(localized: "Messaging caches and installers go to the Trash; other caches are rebuilt the next time an app runs."))
         }
         .sheet(item: $detailKind) { kind in
             CleanupDetailSheet(category: model.cleanupCategories.first { $0.kind == kind })
@@ -150,8 +150,8 @@ struct CleanerView: View {
 
     private var cleanupPolicyText: String {
         model.cleanupScanMode == .deep
-            ? String(localized: "Leftovers, backups, downloads and installers go to the Trash; package manager and browser caches are deleted")
-            : String(localized: "Installers go to the Trash; other selected items are deleted")
+            ? String(localized: "Leftovers, backups, downloads, installers and messaging caches go to the Trash; package manager and browser caches are deleted")
+            : String(localized: "Installers and messaging caches go to the Trash; other selected items are deleted")
     }
 }
 
@@ -226,102 +226,5 @@ private struct CleanupCategoryRow: View {
             return String(localized: "\(selected) of \(category.itemCount) items selected")
         }
         return String(localized: "\(category.itemCount) items")
-    }
-}
-
-private struct CleanupDetailSheet: View {
-    @EnvironmentObject private var model: AppModel
-    @Environment(\.dismiss) private var dismiss
-    let category: CleanupCategory?
-    @State private var selected: Set<URL>
-
-    init(category: CleanupCategory?) {
-        self.category = category
-        _selected = State(initialValue: Set(category?.items.filter(\.isSelected).map(\.id) ?? []))
-    }
-
-    private var kind: CleanupKind { category?.kind ?? .caches }
-    private var allSelected: Bool { !(category?.items.isEmpty ?? true) && category?.items.allSatisfy { selected.contains($0.id) } == true }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(kind.title)
-                        .font(.title2.bold())
-                    Text("Choose the items to clean")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button(allSelected ? "Deselect All" : "Select All") {
-                    selected = allSelected ? [] : Set(category?.items.map(\.id) ?? [])
-                }
-                .disabled(category?.items.isEmpty ?? true)
-                Button("Close") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Button("Done") {
-                    model.applyCleanupSelection(kind: kind, selection: selected, displayedItems: Set(category?.items.map(\.id) ?? []))
-                    dismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-            }
-            .padding(20)
-
-            Divider()
-
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(category?.items ?? []) { item in
-                        HStack(spacing: 12) {
-                            Toggle("", isOn: Binding(
-                                get: { selected.contains(item.id) },
-                                set: { if $0 { selected.insert(item.id) } else { selected.remove(item.id) } }
-                            ))
-                            .toggleStyle(.checkbox)
-                            .labelsHidden()
-                            .accessibilityLabel("Select \(item.url.lastPathComponent)")
-                            Image(systemName: item.isDirectory ? "folder" : "doc")
-                                .foregroundStyle(kind.tint)
-                                .frame(width: 24)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(item.url.lastPathComponent)
-                                    .font(.subheadline.weight(.medium))
-                                    .lineLimit(1)
-                                Text(item.url.deletingLastPathComponent().path.replacingOccurrences(
-                                    of: FileManager.default.homeDirectoryForCurrentUser.path,
-                                    with: "~"
-                                ))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                if let modifiedAt = item.modifiedAt {
-                                    Text("Modified \(AppFormatters.compactDate.string(from: modifiedAt))")
-                                        .font(.caption2)
-                                        .foregroundStyle(.tertiary)
-                                }
-                            }
-                            Spacer()
-                            Text(item.isSizeEstimated ? AppFormatters.bytes(item.size) : String(localized: "Not sized"))
-                                .font(.system(.subheadline, design: .rounded, weight: .medium))
-                                .monospacedDigit()
-                                .foregroundStyle(item.isSizeEstimated ? .primary : .secondary)
-                                .frame(width: 90, alignment: .trailing)
-                            Button {
-                                NSWorkspace.shared.activateFileViewerSelecting([item.url])
-                            } label: {
-                                Image(systemName: "folder")
-                            }
-                            .buttonStyle(.plain)
-                            .help("Show in Finder")
-                        }
-                        .padding(.horizontal, 20)
-                        .frame(minHeight: 58)
-                        Divider().padding(.leading, 56)
-                    }
-                }
-            }
-        }
-        .frame(minWidth: 720, minHeight: 520)
     }
 }

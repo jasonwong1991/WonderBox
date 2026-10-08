@@ -288,7 +288,7 @@ final class AppModel: ObservableObject {
         isScanningStorage = true
         operationMessage = nil
         let mode = cleanupScanMode
-        let running = mode == .deep ? RunningApplicationNames.current() : []
+        let running = RunningApplicationNames.current()
         let previousSelection = Dictionary(uniqueKeysWithValues: cleanupCategories.map { ($0.kind, $0.isSelected) })
         let previousItems = Dictionary(uniqueKeysWithValues: cleanupCategories.map { category in
             (category.kind, Dictionary(uniqueKeysWithValues: category.items.map { ($0.url, $0.isSelected) }))
@@ -301,10 +301,10 @@ final class AppModel: ObservableObject {
             return
         }
         for index in result.indices {
-            let categorySelected = previousSelection[result[index].kind] ?? result[index].isSelected
+            let categorySelected = result[index].accessMessage == nil && (previousSelection[result[index].kind] ?? result[index].isSelected)
             for itemIndex in result[index].items.indices {
                 let url = result[index].items[itemIndex].url
-                result[index].items[itemIndex].isSelected = previousItems[result[index].kind]?[url] ?? categorySelected
+                result[index].items[itemIndex].isSelected = result[index].accessMessage == nil && (previousItems[result[index].kind]?[url] ?? categorySelected)
             }
             result[index].isSelected = result[index].items.isEmpty
                 ? categorySelected
@@ -359,18 +359,19 @@ final class AppModel: ObservableObject {
         let selected = cleanupCategories.filter(\.isSelected)
         guard !selected.isEmpty else { return }
         let regular = selected.filter { $0.kind != .systemCaches }
+        let running = RunningApplicationNames.current()
         var messages: [String] = []
         if !regular.isEmpty {
             let result = await Task.detached(priority: .userInitiated) {
-                StorageCleaner.clean(regular)
+                StorageCleaner.clean(regular, runningApplications: running)
             }.value
             messages.append(result)
         }
         if selected.contains(where: { $0.kind == .systemCaches }) {
             messages.append(MaintenanceController.cleanSystemCaches())
         }
-        operationMessage = messages.joined(separator: "；")
         await scanStorage()
+        operationMessage = messages.joined(separator: "；")
     }
 
     func dismissOperationMessage() {

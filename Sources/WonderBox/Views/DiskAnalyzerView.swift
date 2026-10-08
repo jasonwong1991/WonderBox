@@ -5,14 +5,19 @@ struct DiskAnalyzerView: View {
     @EnvironmentObject private var model: AppModel
     @State private var directory = FileManager.default.homeDirectoryForCurrentUser
     @State private var history: [URL] = []
-    @State private var items: [DiskScanItem] = []
+    @StateObject private var browser = DiskBrowserController()
     @State private var selected = Set<URL>()
     @State private var search = ""
     @State private var sort = DiskSort.size
-    @State private var isScanning = false
+    @State private var isRemoving = false
+    @State private var scopedRoot: URL?
+    @State private var isScopeActive = false
     @State private var message: String?
     @State private var confirmRemoval = false
     @State private var hasScopedDirectoryAccess = false
+
+    private var items: [DiskScanItem] { browser.items }
+    private var isScanning: Bool { browser.isScanning }
 
     private enum DiskSort: String, CaseIterable, Identifiable {
         case size
@@ -50,6 +55,11 @@ struct DiskAnalyzerView: View {
         items.filter { selected.contains($0.id) }.reduce(0) { $0 + $1.size }
     }
 
+    private var selectedSizeText: String {
+        let incomplete = items.contains { selected.contains($0.id) && !$0.isSizeEstimated }
+        return (incomplete ? "≥ " : "") + AppFormatters.bytes(selectedSize)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             PageHeader(
@@ -69,6 +79,8 @@ struct DiskAnalyzerView: View {
                 permissionBanner
             }
 
+            if let error = browser.error { InlineMessage(text: error, isError: true) }
+
             controls
             summary
             itemList
@@ -78,13 +90,19 @@ struct DiskAnalyzerView: View {
         .frame(maxWidth: 1_180, maxHeight: .infinity, alignment: .topLeading)
         .task {
             model.refreshFullDiskAccessStatus()
-            if model.fullDiskAccessStatus == .authorized {
+            if !isScopeActive, let scopedRoot { isScopeActive = scopedRoot.startAccessingSecurityScopedResource() }
+            if model.fullDiskAccessStatus == .authorized || hasScopedDirectoryAccess {
                 scan()
             } else {
                 message = model.supportsFullDiskAccess
                     ? String(localized: "Full Disk Access is not granted yet; grant it, or choose a folder manually.")
                     : String(localized: "Choose a folder to analyze; WonderBox uses the system folder permission.")
             }
+        }
+        .onDisappear {
+            browser.cancel()
+            if isScopeActive { scopedRoot?.stopAccessingSecurityScopedResource() }
+            isScopeActive = false
         }
         .onChange(of: model.fullDiskAccessStatus) { _, status in
             if status == .authorized, items.isEmpty {
@@ -99,7 +117,7 @@ struct DiskAnalyzerView: View {
             Button("Move to Trash", role: .destructive, action: removeSelected)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("\(selected.count) items, about \(AppFormatters.bytes(selectedSize)).")
+            Text("\(selected.count) items, about \(selectedSizeText).")
         }
     }
 
@@ -134,7 +152,7 @@ struct DiskAnalyzerView: View {
             } label: {
                 Image(systemName: "chevron.left")
             }
-            .disabled(history.isEmpty || isScanning)
+            .disabled(history.isEmpty)
             .help("Back to the previous folder")
 
             Button {
@@ -142,7 +160,6 @@ struct DiskAnalyzerView: View {
             } label: {
                 Label("Choose Folder", systemImage: "folder.badge.plus")
             }
-            .disabled(isScanning)
 
             Button {
                 NSWorkspace.shared.open(directory)
@@ -173,13 +190,16 @@ struct DiskAnalyzerView: View {
         HStack(spacing: 14) {
             Label("\(items.count) items", systemImage: "doc.on.doc")
             Divider().frame(height: 16)
-            Label("\(AppFormatters.bytes(items.reduce(0) { $0 + $1.size })) at this level", systemImage: "externaldrive")
+            Label("\(items.contains(where: { !$0.isSizeEstimated }) ? "≥ " : "")\(AppFormatters.bytes(items.reduce(0) { $0 + $1.size })) at this level", systemImage: "externaldrive")
             Spacer()
             if isScanning {
                 ProgressView().controlSize(.small)
-                Text("Calculating sizes")
+                Text(browser.isListing ? "Reading folder…" : "Calculating sizes")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            } else if browser.isCached {
+                Text("Cached · Rescan to update")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .font(.subheadline)
@@ -246,8 +266,7 @@ struct DiskAnalyzerView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
-            .disabled(isScanning)
-            Text(item.size > 0 ? AppFormatters.bytes(item.size) : String(localized: "Not sized"))
+            Text(item.isSizeEstimated ? AppFormatters.bytes(item.size) : String(localized: "Not sized"))
                 .font(.system(.subheadline, design: .rounded, weight: .medium))
                 .monospacedDigit()
                 .frame(width: 100, alignment: .trailing)
@@ -259,7 +278,6 @@ struct DiskAnalyzerView: View {
                 Button { enter(item.url) } label: { Image(systemName: "chevron.right") }
                     .buttonStyle(.plain)
                     .help("Scan this folder")
-                    .disabled(isScanning)
             } else {
                 Color.clear.frame(width: 16)
             }
@@ -270,7 +288,7 @@ struct DiskAnalyzerView: View {
 
     private var footer: some View {
         HStack {
-            Text(selected.isEmpty ? "Select items to show them in Finder or move them to the Trash" : "\(selected.count) selected · \(AppFormatters.bytes(selectedSize))")
+            Text(selected.isEmpty ? "Select items to show them in Finder or move them to the Trash" : "\(selected.count) selected · \(selectedSizeText)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -280,31 +298,20 @@ struct DiskAnalyzerView: View {
             } label: {
                 Label("Show in Finder", systemImage: "folder")
             }
-            .disabled(selected.isEmpty)
+            .disabled(selected.isEmpty || isRemoving)
             Button(role: .destructive) {
                 confirmRemoval = true
             } label: {
                 Label("Move to Trash", systemImage: "trash")
             }
-            .disabled(selected.isEmpty)
+            .disabled(selected.isEmpty || isRemoving)
         }
     }
 
-    private func scan() {
-        guard !isScanning else { return }
-        let target = directory
-        isScanning = true
+    private func scan(force: Bool = false) {
         selected.removeAll()
         message = nil
-        Task {
-            let result = await Task.detached(priority: .utility) { DiskAnalyzer.scan(target) }.value
-            guard directory == target else { return }
-            items = result
-            isScanning = false
-            if result.isEmpty {
-                message = String(localized: "Nothing could be read; use “Choose Folder” to grant access to protected folders")
-            }
-        }
+        browser.scan(directory, force: force)
     }
 
     private func requestScan() {
@@ -312,7 +319,7 @@ struct DiskAnalyzerView: View {
             message = String(localized: "Grant Full Disk Access first, or use “Choose Folder” to grant access to a single folder.")
             return
         }
-        scan()
+        scan(force: true)
     }
 
     private func enter(_ url: URL) {
@@ -337,7 +344,10 @@ struct DiskAnalyzerView: View {
         panel.prompt = String(localized: "Scan")
         panel.directoryURL = directory
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        _ = url.startAccessingSecurityScopedResource()
+        browser.cancel()
+        if isScopeActive { scopedRoot?.stopAccessingSecurityScopedResource() }
+        scopedRoot = url
+        isScopeActive = url.startAccessingSecurityScopedResource()
         hasScopedDirectoryAccess = true
         history.removeAll()
         directory = url
@@ -348,14 +358,18 @@ struct DiskAnalyzerView: View {
     private func removeSelected() {
         let targets = items.filter { selected.contains($0.id) }.map(\.url)
         let root = directory
+        guard !isRemoving else { return }
+        isRemoving = true
         Task {
+            defer { isRemoving = false }
             let result = await Task.detached(priority: .userInitiated) {
                 DiskAnalyzer.moveToTrash(targets, inside: root)
             }.value
+            browser.invalidate(root)
+            if directory == root { scan(force: true) }
             message = result.failed == 0
                 ? String(localized: "Moved \(result.removed) items to the Trash")
                 : String(localized: "Moved \(result.removed) items to the Trash; \(result.failed) could not be moved")
-            scan()
         }
     }
 

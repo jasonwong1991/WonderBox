@@ -230,6 +230,8 @@ enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
     case developerDeep
     case packageCaches
     case browserCaches
+    case wechatCaches
+    case wecomCaches
     case partialDownloads
     case trash
 
@@ -247,6 +249,8 @@ enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
         case .developerDeep: String(localized: "Deep Developer Caches")
         case .packageCaches: String(localized: "Package Manager Caches")
         case .browserCaches: String(localized: "Browser Caches")
+        case .wechatCaches: String(localized: "WeChat Caches")
+        case .wecomCaches: String(localized: "WeCom Caches")
         case .partialDownloads: String(localized: "Partial Downloads")
         case .trash: String(localized: "Trash")
         }
@@ -264,6 +268,7 @@ enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
         case .developerDeep: "wrench.and.screwdriver"
         case .packageCaches: "cube"
         case .browserCaches: "globe"
+        case .wechatCaches, .wecomCaches: "bubble.left.and.bubble.right"
         case .partialDownloads: "arrow.down.doc"
         case .trash: "trash"
         }
@@ -281,6 +286,7 @@ enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
         case .developerDeep: Color(hex: 0x7A67D8)
         case .packageCaches: Color(hex: 0x7A67D8)
         case .browserCaches: Color(hex: 0x2E8BFF)
+        case .wechatCaches, .wecomCaches: Color(hex: 0x13A58D)
         case .partialDownloads: Color(hex: 0xE1A127)
         case .trash: Color(hex: 0xE45E65)
         }
@@ -298,6 +304,7 @@ enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
         case .developerDeep: String(localized: "Simulator caches, device support files and documentation caches")
         case .packageCaches: String(localized: "Download caches for npm, pnpm, uv, Go, Cargo and more; rebuilt on the next install")
         case .browserCaches: String(localized: "Web caches of Chromium browsers and Electron apps; running apps are skipped")
+        case .wechatCaches, .wecomCaches: String(localized: "App and web caches only; chat databases and attachments are excluded")
         case .partialDownloads: String(localized: "Interrupted downloads older than 7 days")
         case .trash: String(localized: "Items in the Finder Trash")
         }
@@ -319,7 +326,7 @@ enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
 
     var movesToTrash: Bool {
         switch self {
-        case .installers, .applicationLeftovers, .deviceBackups, .developerDeep, .partialDownloads, .trash: true
+        case .installers, .applicationLeftovers, .deviceBackups, .developerDeep, .partialDownloads, .trash, .wechatCaches, .wecomCaches: true
         default: false
         }
     }
@@ -359,6 +366,7 @@ struct CleanupItem: Identifiable, Equatable, Sendable {
     let isDirectory: Bool
     /// False when the size estimate did not finish within the scan's time budget.
     let isSizeEstimated: Bool
+    var application: CacheApplicationIdentity? = nil
 
     init(
         url: URL,
@@ -400,11 +408,13 @@ struct CleanupCategory: Identifiable, Equatable, Sendable {
     }
 
     var selectedSize: UInt64 {
+        guard accessMessage == nil else { return 0 }
         guard !items.isEmpty else { return isSelected ? size : 0 }
         return isSelected ? items.filter(\.isSelected).reduce(0) { $0 + $1.size } : 0
     }
 
     var selectedItemCount: Int {
+        guard accessMessage == nil else { return 0 }
         guard !items.isEmpty else { return isSelected ? itemCount : 0 }
         return isSelected ? items.filter(\.isSelected).count : 0
     }

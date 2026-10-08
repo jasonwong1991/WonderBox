@@ -7,13 +7,22 @@ enum RunningApplicationNames {
     @MainActor
     static func current() -> Set<String> {
         var names = Set<String>()
-        for application in NSWorkspace.shared.runningApplications where application.activationPolicy != .prohibited {
+        for application in NSWorkspace.shared.runningApplications {
+            if application.activationPolicy == .prohibited {
+                // Mini-program and background helpers can keep messaging caches open after the main
+                // window closes. Preserve their identifiers without changing generic browser aliases.
+                if let id = application.bundleIdentifier, MessagingApplication.allCases.contains(where: { $0.matches(id) }) {
+                    names.insert(normalize(id))
+                }
+                continue
+            }
             let bundle = application.bundleURL.flatMap(Bundle.init(url:))
             let candidates: [String?] = [
                 application.localizedName,
                 bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String,
                 bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String,
                 application.executableURL?.lastPathComponent,
+                application.bundleIdentifier,
                 application.bundleIdentifier?.split(separator: ".").last.map(String.init)
             ]
             for candidate in candidates.compactMap({ $0 }) {

@@ -4,16 +4,6 @@
     "": {
       "shouldTranslate": false
     },
-    "%@ at this level": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "当前层共 %@"
-          }
-        }
-      }
-    },
     "%@ available": {
       "localizations": {
         "zh-Hans": {
@@ -54,6 +44,26 @@
         }
       }
     },
+    "%@%@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@%@"
+          }
+        }
+      }
+    },
+    "%@%@ at this level": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本层级 %@%@"
+          }
+        }
+      }
+    },
     "%@, %@": {
       "localizations": {
         "zh-Hans": {
@@ -80,12 +90,32 @@
     "%lld RPM": {
       "shouldTranslate": false
     },
+    "%lld apps": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个应用"
+          }
+        }
+      }
+    },
     "%lld apps · %@": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld 个 · %@"
+          }
+        }
+      }
+    },
+    "%lld cache locations · %lld selected": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个缓存位置 · 已选 %lld 个"
           }
         }
       }
@@ -423,12 +453,22 @@
         }
       }
     },
-    "App leftovers, backups and downloads go to the Trash; caches are deleted and rebuilt on demand.": {
+    "App and web caches only; chat databases and attachments are excluded": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "应用残留、备份与下载文件会移入废纸篓；各类缓存会直接删除并按需重建。"
+            "value": "仅应用与网页缓存，不包含聊天数据库和附件"
+          }
+        }
+      }
+    },
+    "App leftovers, backups, downloads and messaging caches go to the Trash; other caches are deleted and rebuilt on demand.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用残留、备份、下载文件和聊天应用缓存移入废纸篓；其他缓存删除后按需重建。"
           }
         }
       }
@@ -470,6 +510,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "AppleSMC 不可用"
+          }
+        }
+      }
+    },
+    "Application Cache": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用缓存"
           }
         }
       }
@@ -806,22 +856,22 @@
         }
       }
     },
+    "Cached · Rescan to update": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存结果 · 重新扫描以更新"
+          }
+        }
+      }
+    },
     "Caches": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "缓存"
-          }
-        }
-      }
-    },
-    "Caches are rebuilt the next time an app runs; installers go to the Trash.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "缓存会在应用再次运行时按需重建，安装包会移入废纸篓。"
           }
         }
       }
@@ -1693,6 +1743,16 @@
         }
       }
     },
+    "Graphics and Shader Cache": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图形与着色器缓存"
+          }
+        }
+      }
+    },
     "High Load": {
       "localizations": {
         "zh-Hans": {
@@ -1753,12 +1813,12 @@
         }
       }
     },
-    "Installers go to the Trash; other selected items are deleted": {
+    "Installers and messaging caches go to the Trash; other selected items are deleted": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "安装包将移入废纸篓，其余选中项将直接清理"
+            "value": "安装包和聊天应用缓存移入废纸篓；其他选中项目直接删除"
           }
         }
       }
@@ -1916,12 +1976,12 @@
         }
       }
     },
-    "Leftovers, backups, downloads and installers go to the Trash; package manager and browser caches are deleted": {
+    "Leftovers, backups, downloads, installers and messaging caches go to the Trash; package manager and browser caches are deleted": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "残留、备份、下载与安装包移入废纸篓；包管理与浏览器缓存直接删除"
+            "value": "残留、备份、下载文件、安装包和聊天应用缓存移入废纸篓；包管理器和浏览器缓存直接删除"
           }
         }
       }
@@ -2116,6 +2176,16 @@
         }
       }
     },
+    "Messaging caches and installers go to the Trash; other caches are rebuilt the next time an app runs.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天应用缓存和安装包移入废纸篓；其他缓存在下次运行应用时重建。"
+          }
+        }
+      }
+    },
     "Mint": {
       "localizations": {
         "zh-Hans": {
@@ -2297,6 +2367,16 @@
         }
       }
     },
+    "No items found": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到项目"
+          }
+        }
+      }
+    },
     "No reclaimable cache right now; compressed memory belongs to running apps, so quit heavy apps to free it": {
       "localizations": {
         "zh-Hans": {
@@ -2387,16 +2467,6 @@
         }
       }
     },
-    "Nothing could be read; use “Choose Folder” to grant access to protected folders": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "未读取到项目；受保护目录可通过“选择目录”授予访问权限"
-          }
-        }
-      }
-    },
     "Nothing to Show Here": {
       "localizations": {
         "zh-Hans": {
@@ -2433,6 +2503,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "持续开启"
+          }
+        }
+      }
+    },
+    "Only listed caches go to the Trash. Chat databases and downloaded attachments are not selected.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅将列出的缓存移入废纸篓，不选择聊天数据库和下载的附件。"
           }
         }
       }
@@ -2533,6 +2613,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "唤醒选项"
+          }
+        }
+      }
+    },
+    "Other Caches": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他缓存"
           }
         }
       }
@@ -2727,6 +2817,16 @@
         }
       }
     },
+    "Quit %@ and rescan before cleaning its caches": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清理缓存前请退出 %@，然后重新扫描"
+          }
+        }
+      }
+    },
     "Quit Now": {
       "localizations": {
         "zh-Hans": {
@@ -2777,6 +2877,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在读取风扇传感器…"
+          }
+        }
+      }
+    },
+    "Reading folder…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读取目录…"
           }
         }
       }
@@ -2921,6 +3031,16 @@
         }
       }
     },
+    "Rescan after granting access or choosing another category": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "授予访问权限后重新扫描，或选择其他类别"
+          }
+        }
+      }
+    },
     "Responding apps: %@": {
       "localizations": {
         "zh-Hans": {
@@ -2994,12 +3114,32 @@
         }
       }
     },
+    "Script Cache": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "脚本缓存"
+          }
+        }
+      }
+    },
     "Search apps": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "搜索应用"
+          }
+        }
+      }
+    },
+    "Search apps or cache folders": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索应用或缓存目录"
           }
         }
       }
@@ -3040,6 +3180,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "选择一个应用"
+          }
+        }
+      }
+    },
+    "Select an app, or expand it to choose individual cache folders": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "勾选应用的全部缓存，或展开选择具体缓存目录"
+          }
+        }
+      }
+    },
+    "Select caches for %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择 %@ 的缓存"
           }
         }
       }
@@ -3114,6 +3274,16 @@
         }
       }
     },
+    "Show caches for %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看 %@ 的缓存"
+          }
+        }
+      }
+    },
     "Show in Finder": {
       "localizations": {
         "zh-Hans": {
@@ -3150,6 +3320,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "大小"
+          }
+        }
+      }
+    },
+    "Skipped %lld caches because the app is running": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用正在运行，已跳过 %lld 个缓存"
           }
         }
       }
@@ -3822,6 +4002,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在等待下一次采样…"
+          }
+        }
+      }
+    },
+    "WeChat": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "微信"
+          }
+        }
+      }
+    },
+    "WeChat Caches": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "微信缓存"
+          }
+        }
+      }
+    },
+    "WeCom": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "企业微信"
+          }
+        }
+      }
+    },
+    "WeCom Caches": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "企业微信缓存"
+          }
+        }
+      }
+    },
+    "Web Cache": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "网页缓存"
           }
         }
       }

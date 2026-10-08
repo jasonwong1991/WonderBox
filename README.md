@@ -71,7 +71,9 @@ Most "Mac cleaners" show you a big green number and hope you don't check. Wonder
 
 Every category expands to item level so you can keep one tool's cache and drop another:
 
-The detail sheet has a single Select All / Deselect All toggle. Done saves changes; Close or Escape discards the draft and keeps the previous selection. ZIP archives count as installers only when they contain an app, installer package or disk image.
+App-cache details show application names, icons and combined cache sizes; expand an app to select individual folders. Search narrows the app list, and Select All / Deselect All applies to visible results. Done saves changes; Close or Escape keeps the previous selection. ZIP archives count as installers only when they contain an app, installer package or disk image.
+
+**WeChat and WeCom caches** have separate opt-in categories in standard and deep scans. Only explicit application/web cache directories are listed, not chat databases or downloaded attachments; caches go to the Trash, and running apps must be quit before cleanup. Background helpers and apps started after confirmation are checked again before moving each cache. Supported layouts include regular caches, sandbox/group containers, WebKit/Qt profiles and known legacy account/version cache folders.
 
 ![Item-level selection inside the package cache category](docs/screenshots/cleaner-detail.png)
 
@@ -87,7 +89,7 @@ Related files are grouped in expandable folders with group selection and content
 
 ![Disk analyzer listing home directory children by size](docs/screenshots/storage.png)
 
-Drill into any folder level by level with sizes computed in parallel, sort by size/name/date, reveal in Finder or move selected items to the Trash. Cloud-synced folders are excluded from sizing so a scan never triggers downloads.
+Drill into any folder level by level: metadata rows appear first, then four cancellable background workers fill in folder sizes. Navigation stays available while sizing; returning to a recently scanned folder uses a bounded 60-second cache, and Rescan forces a refresh. Incomplete totals are shown as lower bounds. Sort by size/name/date, reveal in Finder or move selected items to the Trash. Cloud-synced folders are excluded from automatic traversal.
 
 ### Fan control, keep awake, menu bar
 
