@@ -6,6 +6,7 @@ enum AdministratorShell {
     struct Failure: Error, Sendable {
         let message: String
         let isCancelled: Bool
+        var code: Int = 0
     }
 
     @MainActor
@@ -15,7 +16,8 @@ enum AdministratorShell {
         let output = NSAppleScript(source: source)?.executeAndReturnError(&error)
         if let error {
             let message = error[NSAppleScript.errorMessage] as? String ?? String(localized: "Authorization cancelled")
-            return .failure(Failure(message: message, isCancelled: message == "User canceled."))
+            let code = (error[NSAppleScript.errorNumber] as? NSNumber)?.intValue ?? 0
+            return .failure(Failure(message: message, isCancelled: code == -128 || message == "User canceled.", code: code))
         }
         return .success(output?.stringValue ?? "")
     }

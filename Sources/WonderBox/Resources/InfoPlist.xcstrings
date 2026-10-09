@@ -7,13 +7,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "WonderBox reads the size of the Trash and empties it only when you confirm."
+            "value" : "WonderBox uses Finder to move selected items to the Trash, read its size and empty it only when you confirm."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "用于读取废纸篓容量并执行用户确认的清空操作。"
+            "value" : "通过 Finder 将所选项目移入废纸篓、读取废纸篓容量，并仅在确认后清空。"
           }
         }
       }

@@ -70,12 +70,7 @@ enum MessagingCacheScanner {
     }
 
     static func containerIdentifier(_ url: URL) -> String? {
-        let metadata = url.appendingPathComponent(".com.apple.containermanagerd.metadata.plist")
-        guard let values = try? metadata.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey, .fileSizeKey]),
-              values.isSymbolicLink != true, values.isRegularFile == true, (values.fileSize ?? Int.max) < 1_048_576,
-              let data = try? Data(contentsOf: metadata),
-              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else { return nil }
-        return plist["MCMMetadataIdentifier"] as? String
+        ContainerMetadata.identifier(at: url)
     }
 
     static func locations(for application: MessagingApplication, home: URL) -> [URL] {

@@ -121,72 +121,23 @@ enum ApplicationScanner {
         )
     }
 
-    static func relatedFiles(for application: InstalledApplication) -> [RelatedFile] {
-        let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL
-        let homePrefix = home.path + "/"
-        let candidates = relatedFileCandidates(
+    static func relatedFileScan(for application: InstalledApplication) -> RelatedFileScan {
+        RelatedFileScanner.scan(
             for: application,
-            home: home,
+            home: FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL,
             systemLibrary: URL(fileURLWithPath: "/Library", isDirectory: true),
             temporaryDirectories: [_CS_DARWIN_USER_CACHE_DIR, _CS_DARWIN_USER_TEMP_DIR].compactMap(darwinUserDirectory)
         )
-        return candidates.map { url in
-            RelatedFile(
-                url: url,
-                displayPath: url.path.hasPrefix(homePrefix) ? "~/" + url.path.dropFirst(homePrefix.count) : url.path,
-                size: FileSystemScanner.allocatedSize(of: url)
-            )
-        }.sorted { $0.size > $1.size }
     }
 
-    /// Direct children of the well-known support directories that belong to `application`. Only the
-    /// first level is inspected: deeper walks are slow and start matching unrelated data.
-    static func relatedFileCandidates(
-        for application: InstalledApplication,
-        home: URL,
-        systemLibrary: URL,
-        temporaryDirectories: [URL]
-    ) -> [URL] {
-        let library = home.appendingPathComponent("Library", isDirectory: true)
-        var rules: [(root: URL, matches: (String) -> Bool)] = []
+    static func relatedFiles(for application: InstalledApplication) -> [RelatedFile] {
+        relatedFileScan(for: application).files
+    }
 
-        if let identifier = application.bundleIdentifier, !identifier.isEmpty {
-            let byIdentifier: (String) -> Bool = { belongs($0, toIdentifier: identifier) }
-            let userRoots = [
-                "Application Scripts", "Application Support", "Caches", "Containers", "Cookies", "Group Containers",
-                "HTTPStorages", "LaunchAgents", "Logs", "Preferences", "Preferences/ByHost", "Saved Application State", "WebKit"
-            ].map { library.appendingPathComponent($0, isDirectory: true) }
-            let systemRoots = [
-                "Application Support", "Caches", "LaunchAgents", "LaunchDaemons", "Logs", "Preferences", "PrivilegedHelperTools"
-            ].map { systemLibrary.appendingPathComponent($0, isDirectory: true) }
-            rules += (userRoots + systemRoots + temporaryDirectories).map { ($0, byIdentifier) }
-        }
-
-        // Apps outside the sandbox often name their folders after the product instead of the bundle identifier.
-        let names = Set([application.name, application.url.deletingPathExtension().lastPathComponent].map { $0.lowercased() })
-        let byName: (String) -> Bool = { names.contains($0.lowercased()) }
-        rules += ["Application Support", "Caches", "Logs"].map { (library.appendingPathComponent($0, isDirectory: true), byName) }
-        rules += ["Application Support", "Logs"].map { (systemLibrary.appendingPathComponent($0, isDirectory: true), byName) }
-        // Crash reports are keyed by process name: "<Name>_<host>.plist", "<Name>-2024-01-01-120000.ips".
-        let byNamePrefix: (String) -> Bool = { fileName in
-            let lowercased = fileName.lowercased()
-            return names.contains { lowercased.hasPrefix($0 + "_") || lowercased.hasPrefix($0 + "-") }
-        }
-        rules += [
-            (library.appendingPathComponent("Application Support/CrashReporter", isDirectory: true), byNamePrefix),
-            (library.appendingPathComponent("Logs/DiagnosticReports", isDirectory: true), byNamePrefix)
-        ]
-
-        var seen = Set<String>()
-        var result: [URL] = []
-        for rule in rules {
-            for url in FileSystemScanner.children(of: rule.root) where rule.matches(url.lastPathComponent) {
-                if Task.isCancelled { return result }
-                let standardized = url.standardizedFileURL
-                if seen.insert(standardized.path).inserted { result.append(standardized) }
-            }
-        }
-        return result
+    static func relatedFileCandidates(for application: InstalledApplication, home: URL,
+                                      systemLibrary: URL, temporaryDirectories: [URL]) -> [URL] {
+        RelatedFileScanner.discover(for: application, home: home, systemLibrary: systemLibrary,
+                                   temporaryDirectories: temporaryDirectories).urls
     }
 
     /// "com.foo.app" owns "com.foo.app", "com.foo.app.plist", "com.foo.app.Helper.savedState" and
@@ -212,18 +163,44 @@ enum ApplicationScanner {
         var failed: [URL] = []
     }
 
-    static func uninstall(application: InstalledApplication, relatedFiles: [RelatedFile]) -> UninstallOutcome {
-        let manager = FileManager.default
+    static func isInTrash(_ url: URL, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Bool {
+        let path = url.standardizedFileURL.path
+        let trash = home.appendingPathComponent(".Trash").standardizedFileURL.path
+        if path.hasPrefix(trash + "/") { return true }
+        let components = url.standardizedFileURL.pathComponents
+        return components.count > 5 && components[1] == "Volumes" && components[3] == ".Trashes" && components[4] == String(getuid())
+    }
+
+    static func needsBundleRemoval(_ url: URL, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Bool {
+        !isInTrash(url, home: home) && FilePresence.check(url) != .missing
+    }
+
+    static func uninstall(application: InstalledApplication, relatedFiles: [RelatedFile],
+                          home: URL = FileManager.default.homeDirectoryForCurrentUser,
+                          trash: (URL) throws -> Void = { url in
+                              var result: NSURL?
+                              try FileManager.default.trashItem(at: url, resultingItemURL: &result)
+                          }) -> UninstallOutcome {
         var outcome = UninstallOutcome()
-        for url in [application.url] + relatedFiles.map(\.url) where manager.fileExists(atPath: url.path) {
+        var firstErrorCode: Int64?
+        let bundle = needsBundleRemoval(application.url, home: home) ? [application.url] : []
+        var seen = Set<URL>()
+        for url in bundle + relatedFiles.filter(\.isSelected).map(\.url) {
+            guard seen.insert(url.standardizedFileURL).inserted, FilePresence.check(url) != .missing else { continue }
             do {
-                var result: NSURL?
-                try manager.trashItem(at: url, resultingItemURL: &result)
-                outcome.trashed += 1
+                try trash(url)
+                // A successful API call alone is not proof that the source disappeared.
+                if FilePresence.check(url) == .missing { outcome.trashed += 1 }
+                else { outcome.failed.append(url) }
             } catch {
                 outcome.failed.append(url)
+                firstErrorCode = firstErrorCode ?? Int64((error as NSError).code)
             }
         }
+        var metrics: [DiagnosticMetric: Int64] = [.count: Int64(outcome.trashed), .failed: Int64(outcome.failed.count)]
+        if let firstErrorCode { metrics[.errorCode] = firstErrorCode }
+        DiagnosticLogger.shared.record(.applicationTrashAttempt, outcome: outcome.failed.isEmpty ? .success : .partial,
+                                       errorFamily: outcome.failed.isEmpty ? nil : .fileSystem, metrics: metrics)
         return outcome
     }
 
@@ -340,7 +317,7 @@ enum StorageCleaner {
         var locations: [(CleanupKind, [URL], Bool)] = [
             (.caches, (FileSystemScanner.children(of: cacheRoot) + sandboxedCaches()).filter { MessagingCacheScanner.owner(of: $0, home: home) == nil }, CleanupKind.caches.isSelectedByDefault),
             (.systemCaches, FileSystemScanner.children(of: systemCacheRoot), CleanupKind.systemCaches.isSelectedByDefault),
-            (.logs, FileSystemScanner.children(of: logRoot), CleanupKind.logs.isSelectedByDefault),
+            (.logs, FileSystemScanner.children(of: logRoot).filter { $0.lastPathComponent != "WonderBox" }, CleanupKind.logs.isSelectedByDefault),
             (.developer, FileSystemScanner.children(of: developerRoot), CleanupKind.developer.isSelectedByDefault),
             (.installers, installerFiles(in: downloadsRoot), CleanupKind.installers.isSelectedByDefault),
             (.wechatCaches, MessagingCacheScanner.locations(for: .wechat, home: home), false),
@@ -403,6 +380,7 @@ enum StorageCleaner {
         var removedCount = 0
         var failedCount = 0
         var skippedRunning = 0
+        var firstErrorCode: Int64?
 
         // Empty the existing Trash before moving new recoverable items into it.
         if let trash = categories.first(where: { $0.kind == .trash }) {
@@ -449,10 +427,15 @@ enum StorageCleaner {
                     removedCount += 1
                 } catch {
                     failedCount += 1
+                    firstErrorCode = firstErrorCode ?? Int64((error as NSError).code)
                 }
             }
         }
 
+        var metrics: [DiagnosticMetric: Int64] = [.count: Int64(removedCount), .failed: Int64(failedCount), .skipped: Int64(skippedRunning), .bytes: Int64(clamping: removed)]
+        if let firstErrorCode { metrics[.errorCode] = firstErrorCode }
+        DiagnosticLogger.shared.record(.cleanupFinished, outcome: failedCount > 0 || skippedRunning > 0 ? .partial : .success,
+                                       errorFamily: failedCount > 0 ? .fileSystem : nil, metrics: metrics)
         let result = failedCount > 0
             ? String(localized: "Cleaned \(removedCount) items; \(failedCount) are protected by the system")
             : String(localized: "Cleaned \(removedCount) items, freeing about \(AppFormatters.bytes(removed))")
@@ -472,6 +455,9 @@ enum StorageCleaner {
         case .wecomCaches: return MessagingCacheScanner.isSafe(url, for: .wecom, home: home)
         case .browserCaches:
             return MessagingCacheScanner.owner(of: url, home: home) == nil && underAllowedRoot && isBrowserCacheDirectory(url)
+        case .logs:
+            let diagnostics = home.appendingPathComponent("Library/Logs/WonderBox").path
+            return underAllowedRoot && path != diagnostics && !path.hasPrefix(diagnostics + "/")
         default:
             return underAllowedRoot
         }

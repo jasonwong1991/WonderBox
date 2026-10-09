@@ -67,6 +67,8 @@ final class DiskBrowserController: ObservableObject {
         }
     }
 
+    func waitForScan() async { await task?.value }
+
     func cancel() {
         scanID = UUID()
         task?.cancel()

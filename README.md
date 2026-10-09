@@ -23,7 +23,7 @@
 
 ![WonderBox overview page showing CPU, memory, disk, network, battery and uptime](docs/screenshots/overview.png)
 
-> The interface supports English and Simplified Chinese. Everything runs on-device; nothing is uploaded.
+> The interface supports English and Simplified Chinese. Scans and diagnostic logs stay on-device. Update checks contact GitHub; logs are shared only if you export and send them yourself.
 
 ## Why WonderBox
 
@@ -48,6 +48,7 @@ Most "Mac cleaners" show you a big green number and hope you don't check. Wonder
 
 ### CPU and GPU
 
+- Full-width usage charts show a rolling 60-second window with time/percentage axes. Missing GPU readings and sampling gaps are not drawn as idle time.
 - Live per-application rankings, including helper processes, refreshed every 3 seconds; search, quit and force quit from the list
 - CPU follows Activity Monitor's convention: one occupied core is 100%, so multi-core apps can exceed 100%
 - GPU process usage comes from driver-provided context counters where available; unsupported drivers show `—`, not a fabricated zero. Concurrent contexts can total more than the overall device utilization
@@ -73,6 +74,8 @@ Every category expands to item level so you can keep one tool's cache and drop a
 
 App-cache details show application names, icons and combined cache sizes; expand an app to select individual folders. Search narrows the app list, and Select All / Deselect All applies to visible results. Done saves changes; Close or Escape keeps the previous selection. ZIP archives count as installers only when they contain an app, installer package or disk image.
 
+Click **Name** or **Size** in cleanup details to sort application groups and their expanded cache folders. Size starts largest-first; click again to reverse. Selection and expanded groups are preserved, and unknown sizes stay last.
+
 **WeChat and WeCom caches** have separate opt-in categories in standard and deep scans. Only explicit application/web cache directories are listed, not chat databases or downloaded attachments; caches go to the Trash, and running apps must be quit before cleanup. Background helpers and apps started after confirmation are checked again before moving each cache. Supported layouts include regular caches, sandbox/group containers, WebKit/Qt profiles and known legacy account/version cache folders.
 
 ![Item-level selection inside the package cache category](docs/screenshots/cleaner-detail.png)
@@ -83,9 +86,15 @@ App-cache details show application names, icons and combined cache sizes; expand
 
 Inventory of `/Applications` and `~/Applications` with size, install date and last-use date from Spotlight; large/stale filters; related caches, preferences, containers and saved state listed per app; everything goes to the Trash.
 
-Related files are grouped in expandable folders with group selection and content previews. Normal user permissions are tried first; protected apps use the shared helper after one administrator authorization. The helper checks the caller's signing identity and user ID, restricts paths, refuses symlink traversal, and preserves names inside separate Trash folders. Updating an ad-hoc signed build may require authorization again; passwords are never stored.
+Related files are grouped in expandable folders with group selection and content previews. Normal user permissions are tried first; failed items are retried together through Finder's Move to Trash command (Apple Events). Finder handles any necessary authentication; WonderBox does not install or authorize its background service for uninstalling and never stores passwords.
+
+Sandbox containers are found by bundle identifier and container metadata, including UUID-named containers. Unreadable locations produce an access warning rather than an empty-success result. Apps already in the Trash can be selected to remove only their related files. Uninstall checks that selected sources disappeared, rescans for remaining files, and keeps failures available for retry; newly discovered files are unchecked until reviewed. Quit the app before uninstalling to prevent it from recreating its data.
+
+Uninstall reports the actual system error, retains failed items for retry and provides Details and Show Remaining Items in Finder actions. Cancelling the system operation does not trigger another authorization attempt. Finder Automation permission is requested only when needed; denial shows the Automation settings action, not a Full Disk Access warning.
 
 ### Disk analyzer
+
+The toolbar refresh button and **⌘R** refresh the current tab, not just Overview. CPU/GPU and Memory refresh both system metrics and app rankings; Uninstaller rescans apps and selected-app related files; Cleanup rescans without cleaning; Disk Analyzer bypasses cached sizes for the current directory. Settings reloads permission/login-item status, log size and update availability. Refreshing never starts optimization, changes fan mode or extends a keep-awake session.
 
 ![Disk analyzer listing home directory children by size](docs/screenshots/storage.png)
 
@@ -109,6 +118,13 @@ Drill into any folder level by level: metadata rows appear first, then four canc
 - A dedicated Startup settings area with approval status and an entry point to macOS Login Items management; external changes are reflected when returning to WonderBox
 
 ![Settings page with appearance, language, menu bar, launch at login and permission status](docs/screenshots/settings.png)
+
+### Updates and diagnostics
+
+- **Settings → Software Updates**, or **WonderBox → Check for Updates…**: check GitHub's latest stable release, read release notes and choose where to download the ZIP. Automatic checks are enabled by default and throttled to once per 24 hours (including failed attempts); turn them off in Settings. If the REST API is rate-limited, the official latest-release redirect and `SHA256SUMS` provide a fallback. Checks send no scan results or diagnostics, use no account/token and store no cookies.
+- Downloads show progress, support cancellation/retry, and require the expected size plus a SHA-256 digest from GitHub or the release's `SHA256SUMS`. Files are saved atomically after verification, retain macOS quarantine metadata and are never unpacked or executed automatically. Quit WonderBox, unzip the archive and replace the app manually. Direct builds only; App Store builds use the Store's update mechanism.
+- **Settings → Diagnostics**: lightweight local operation results and numeric error codes help diagnose permissions, fan reads, cleanup and update failures. Logging is enabled by default; disabling it clears the logs. Four rotating files of at most 512 KiB each (2 MiB total) retain events for no longer than 7 days. No high-frequency monitoring samples, filenames, paths, usernames, account details, commands, tokens or file contents are logged. WonderBox's diagnostic directory is excluded from routine log cleanup.
+- **Export Logs…** creates a ZIP of the bounded logs plus app/macOS versions and CPU architecture; it also works when logging is off. Review the ZIP and attach it to your issue yourself. No automatic upload, telemetry or crash-reporting service. **Clear Logs…** removes local logs, not previous exports.
 
 ## Install
 
@@ -156,7 +172,8 @@ WonderBox asks for exactly what a feature needs, when you first use it:
 | Monitoring, keep awake, app inventory, standard cleanup | none | — |
 | Trash size and emptying | Automation (Finder) | first cleanup scan |
 | Full home-directory scans | Full Disk Access (optional, user-controlled) | onboarding or Settings |
-| Fan control, memory optimization, protected app removal | Administrator authorization to install or update the shared helper | first privileged action |
+| Fan control, memory optimization | Administrator authorization to install or update the shared helper | first privileged action |
+| Protected app removal | macOS's Finder-style Trash operation; system authentication if needed | when normal removal fails |
 | `/Library/Caches` cleanup | Administrator password per run | when that category is selected |
 
 The helper daemon is a fixed-command service reachable over a root-owned Unix socket. It verifies the caller's signing identity and user ID before accepting fan, memory-maintenance or restricted Trash requests; it never executes caller-supplied shell commands. Installing or updating the helper, or changing the app's ad-hoc signing identity, requires administrator authorization.
@@ -165,7 +182,7 @@ The helper daemon is a fixed-command service reachable over a root-owned Unix so
 
 The core monitor and awake features use public APIs. Application and cleanup operations use public Foundation APIs, but broad user-Library access is restricted by App Sandbox.
 
-- **Direct** (what `package_app.sh` builds): bundles `WonderFanHelper`; the helper daemon (protocol v5) performs fan writes, memory-pressure broadcast/purge and protected app removal. Full Disk Access can be enabled once for broad local scans.
+- **Direct** (what `package_app.sh` builds): bundles `WonderFanHelper`; the helper daemon (protocol v6) performs fan writes and memory-pressure broadcast/purge. Uninstall uses the system Trash operation instead. Full Disk Access can be enabled for broad local scans.
 - **App Store:** enable `WonderBox-AppStore.entitlements`, omit the fan helper/CSMC source, and retain user-selected file access. Broad cleanup categories must use folder selection with security-scoped bookmarks or be disabled.
 
 See [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md) for the capability matrix and release checklist.

@@ -44,13 +44,7 @@ struct RootView: View {
         .navigationSplitViewStyle(.balanced)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    Task { await model.refreshMetrics() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .help("Refresh Status")
-                .accessibilityLabel("Refresh Status")
+                CurrentSectionRefreshButton(controller: model.sectionRefresh, section: model.selection ?? .overview, compact: true)
             }
         }
         .onAppear {

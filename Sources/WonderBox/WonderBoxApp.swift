@@ -11,6 +11,7 @@ struct WonderBoxApplication: App {
     @AppStorage("awakeDuration") private var awakeDuration = AwakeDuration.oneHour.rawValue
     @AppStorage("keepDisplayAwake") private var keepDisplayAwake = false
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openWindow) private var openWindow
 
     private var selectedAppearance: AppAppearance {
         AppAppearance(rawValue: appearance) ?? .system
@@ -33,10 +34,11 @@ struct WonderBoxApplication: App {
                 .tint(selectedAccent.color)
                 .frame(minWidth: 980, minHeight: 660)
                 .reportsMainWindow(to: dockPresence)
-                .onAppear { model.startMonitoring() }
+                .onAppear { model.startMonitoring(); model.startApplicationServices() }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
                         model.startMonitoring()
+                        model.startApplicationServices()
                     } else if phase == .background {
                         model.stopMonitoring()
                     }
@@ -45,10 +47,19 @@ struct WonderBoxApplication: App {
         .defaultSize(width: 1_180, height: 760)
         .windowStyle(.hiddenTitleBar)
         .commands {
-            CommandMenu("Tools") {
-                Button("Refresh Status") {
-                    Task { await model.refreshMetrics() }
+            CommandGroup(after: .appInfo) {
+                if UpdateController.isSupported {
+                    Button("Check for Updates…") {
+                        model.selection = .settings
+                        dockPresence.willShowMainWindow()
+                        openWindow(id: "main")
+                        NSApp.activate(ignoringOtherApps: true)
+                        model.updater.check()
+                    }
                 }
+            }
+            CommandMenu("Tools") {
+                CurrentSectionRefreshButton(controller: model.sectionRefresh, section: model.selection ?? .overview)
                 .keyboardShortcut("r", modifiers: .command)
 
                 Divider()
@@ -236,7 +247,7 @@ private struct MenuBarContentView: View {
         .foregroundStyle(.primary)
         .padding(16)
         .frame(width: 360)
-        .task { await refreshStatus() }
+        .task { model.startApplicationServices(); await refreshStatus() }
     }
 
     private var fanSummary: some View {

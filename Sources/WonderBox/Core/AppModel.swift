@@ -7,6 +7,8 @@ import SwiftUI
 final class AppModel: ObservableObject {
     @Published var selection: AppSection? = .overview
     @Published private(set) var snapshot = MetricSnapshot()
+    @Published private(set) var processorHistory = ProcessorHistory()
+    @Published private(set) var isRefreshingMetrics = false
     @Published private(set) var cpuHistory: [Double] = Array(repeating: 0, count: 30)
     @Published private(set) var gpuHistory: [Double] = Array(repeating: 0, count: 30)
     @Published private(set) var memoryHistory: [Double] = Array(repeating: 0, count: 30)
@@ -29,6 +31,7 @@ final class AppModel: ObservableObject {
     @Published var selectedApplication: InstalledApplication?
     @Published private(set) var relatedFiles: [RelatedFile] = []
     @Published private(set) var isScanningRelatedFiles = false
+    @Published private(set) var relatedFileScanMessage: String?
     @Published private(set) var isUninstallingApplication = false
     @Published var cleanupScanMode: CleanupScanMode = .standard
     @Published private(set) var cleanupCategories: [CleanupCategory] = CleanupKind.kinds(for: .standard).map {
@@ -44,6 +47,9 @@ final class AppModel: ObservableObject {
     }
     @Published private(set) var isScanningStorage = false
     @Published private(set) var operationMessage: String?
+    @Published private(set) var uninstallMessageIsError = false
+    @Published private(set) var uninstallNeedsFinderPermission = false
+    @Published private(set) var uninstallRemainingItems: [URL] = []
     @Published private(set) var isQuickCleaning = false
     @Published private(set) var quickActionMessage: String?
     @Published private(set) var fullDiskAccessStatus = FullDiskAccessController.currentStatus()
@@ -51,18 +57,24 @@ final class AppModel: ObservableObject {
     let sleepPreventer = SleepPreventer()
     let memoryOptimizer = MemoryOptimizer()
     let processorMonitor = ProcessorMonitor()
+    let sectionRefresh = SectionRefreshController()
     let systemInfo = SystemInformation.current
+    let updater = UpdateController()
+    let diagnostics = DiagnosticsController()
 
     private var monitorTask: Task<Void, Never>?
+    private var metricsRefreshTask: Task<Void, Never>?
     private var previousCounters: SystemCounters?
     private var relatedFileScanID = UUID()
     private var didOfferFullDiskAccess = false
+    private var didStartServices = false
 
     var supportsFullDiskAccess: Bool {
         FullDiskAccessController.isSupported
     }
 
-    init() {
+    init(applications: [InstalledApplication] = []) {
+        self.applications = applications
         guard let flagIndex = CommandLine.arguments.firstIndex(of: "--section"),
               CommandLine.arguments.indices.contains(flagIndex + 1),
               let requested = AppSection(rawValue: CommandLine.arguments[flagIndex + 1])
@@ -96,6 +108,14 @@ final class AppModel: ObservableObject {
         cleanupCategories.reduce(0) { $0 + $1.selectedItemCount }
     }
 
+    func startApplicationServices() {
+        if !didStartServices {
+            didStartServices = true
+            DiagnosticLogger.shared.record(.appStarted)
+        }
+        updater.checkAutomaticallyIfNeeded()
+    }
+
     func startMonitoring() {
         guard monitorTask == nil else { return }
         isMonitoring = true
@@ -121,12 +141,22 @@ final class AppModel: ObservableObject {
     }
 
     func refreshMetrics() async {
+        if let metricsRefreshTask { await metricsRefreshTask.value; return }
+        isRefreshingMetrics = true
+        let task = Task { await sampleMetrics() }
+        metricsRefreshTask = task
+        defer { metricsRefreshTask = nil; isRefreshingMetrics = false }
+        await task.value
+    }
+
+    private func sampleMetrics() async {
         let previous = previousCounters
         let sample = await Task.detached(priority: .utility) {
             SystemMonitor.sample(previous: previous)
         }.value
         previousCounters = sample.counters
         snapshot = sample.snapshot
+        processorHistory.append(sample.snapshot)
         cpuHistory.append(sample.snapshot.cpuUsage)
         gpuHistory.append(sample.snapshot.gpuUsage ?? 0)
         memoryHistory.append(sample.snapshot.memoryFraction)
@@ -143,6 +173,10 @@ final class AppModel: ObservableObject {
         fans = await Task.detached(priority: .utility) {
             FanController.initialReadings(retry: isInitial)
         }.value
+        if isInitial {
+            DiagnosticLogger.shared.record(.fanInitialRead, outcome: fans.isEmpty ? .unavailable : .success,
+                                           metrics: [.count: Int64(fans.count), .zeroReadings: Int64(fans.filter { $0.currentRPM == 0 }.count)])
+        }
     }
 
     func refreshFullDiskAccessStatus() {
@@ -192,6 +226,7 @@ final class AppModel: ObservableObject {
     func applyFan(mode: FanMode, customRPM: Double) async {
         fanMessage = nil
         let result = await FanController.apply(mode: mode, customRPM: customRPM, fans: fans)
+        DiagnosticLogger.shared.record(.fanModeApplied, outcome: result.succeeded ? .success : .failure, errorFamily: result.succeeded ? nil : .helper)
         fanMessage = result.message
         await refreshFans()
     }
@@ -199,29 +234,48 @@ final class AppModel: ObservableObject {
     func scanApplications() async {
         guard !isScanningApplications else { return }
         isScanningApplications = true
+        let started = Date()
         operationMessage = nil
         applications = await Task.detached(priority: .utility) {
             ApplicationScanner.scanApplications()
         }.value
         isScanningApplications = false
+        DiagnosticLogger.shared.record(.applicationScanFinished, metrics: [.count: Int64(applications.count), .durationMS: Int64(Date().timeIntervalSince(started) * 1_000)])
+    }
+
+    func refreshApplicationInventory() async {
+        guard !isUninstallingApplication, !isScanningApplications, !isScanningRelatedFiles else { return }
+        let selected = selectedApplication
+        let previous = relatedFiles
+        await scanApplications()
+        guard let selected, selectedApplication?.id == selected.id, !isUninstallingApplication else { return }
+        let refreshed = applications.first { $0.id == selected.id } ?? selected
+        await selectApplication(refreshed)
+        guard selectedApplication?.id == selected.id else { return }
+        relatedFiles = RelatedFileScanner.remainingFiles(previous: previous, scanned: relatedFiles)
     }
 
     func selectApplication(_ application: InstalledApplication?) async {
+        guard !isUninstallingApplication else { return }
         let scanID = UUID()
         relatedFileScanID = scanID
         selectedApplication = application
         relatedFiles = []
+        relatedFileScanMessage = nil
         guard let application else {
             isScanningRelatedFiles = false
             return
         }
         isScanningRelatedFiles = true
         let result = await Task.detached(priority: .utility) {
-            ApplicationScanner.relatedFiles(for: application)
+            ApplicationScanner.relatedFileScan(for: application)
         }.value
         guard relatedFileScanID == scanID else { return }
-        relatedFiles = result
+        relatedFiles = result.files
+        relatedFileScanMessage = result.accessMessage
         isScanningRelatedFiles = false
+        DiagnosticLogger.shared.record(.relatedFileScanFinished, outcome: result.inaccessibleLocations.isEmpty ? .success : .partial,
+                                       metrics: [.count: Int64(result.files.count), .failed: Int64(result.inaccessibleLocations.count)])
     }
 
     func addApplication(at url: URL) async {
@@ -254,38 +308,73 @@ final class AppModel: ObservableObject {
 
     func uninstallSelectedApplication() async {
         guard let selectedApplication, !isUninstallingApplication, !isScanningRelatedFiles else { return }
+        uninstallNeedsFinderPermission = false
+        // Otherwise an app can recreate its container immediately after it was removed.
+        uninstallRemainingItems = []
+        if NSWorkspace.shared.runningApplications.contains(where: {
+            $0.bundleURL?.standardizedFileURL == selectedApplication.url.standardizedFileURL ||
+            (selectedApplication.bundleIdentifier != nil && $0.bundleIdentifier == selectedApplication.bundleIdentifier)
+        }) {
+            presentUninstallResult(message: String(localized: "Quit \(selectedApplication.name) before removing its files, then try again."),
+                                   isError: true, needsFinderPermission: false)
+            return
+        }
         isUninstallingApplication = true
         defer { isUninstallingApplication = false }
         relatedFileScanID = UUID()
+        let previousRelated = relatedFiles
         let selectedRelated = relatedFiles.filter(\.isSelected)
         let outcome = await Task.detached(priority: .userInitiated) {
             ApplicationScanner.uninstall(application: selectedApplication, relatedFiles: selectedRelated)
         }.value
-        let message: String
-        if outcome.failed.isEmpty {
-            message = String(localized: "Moved \(outcome.trashed) items to the Trash")
-        } else {
-            // Only failures need the helper; reuse its one-time authorization for subsequent uninstalls.
-            switch await PrivilegedService.trash(outcome.failed) {
-            case let .success(result) where result.failed.isEmpty:
-                message = String(localized: "Moved \(outcome.trashed + result.moved) items to the Trash")
-            case let .success(result):
-                message = String(localized: "Moved \(outcome.trashed + result.moved) items to the Trash; \(result.failed.count) could not be removed")
-            case let .failure(failure):
-                message = String(localized: "Moved \(outcome.trashed) items to the Trash") + " · " + failure.message
-            }
+        var removed = outcome.trashed
+        var removalMessage: String?
+        var needsFinderPermission = false
+        if !outcome.failed.isEmpty {
+            let result = await SystemTrashService.trash(outcome.failed)
+            removed += result.moved
+            removalMessage = result.message
+            needsFinderPermission = result.needsFinderPermission
         }
-        self.selectedApplication = nil
-        relatedFiles = []
+        // Keep the bundle identity even if its original URL has moved, so failures are retryable.
+        let verification = await Task.detached(priority: .utility) {
+            let scan = ApplicationScanner.relatedFileScan(for: selectedApplication)
+            return (scan, RelatedFileScanner.remainingFiles(previous: previousRelated, scanned: scan.files),
+                    ApplicationScanner.needsBundleRemoval(selectedApplication.url))
+        }.value
+        let failed = verification.1.filter(\.isSelected).count + (verification.2 ? 1 : 0)
+        let incomplete = verification.0.accessMessage != nil
+        if failed == 0 { removalMessage = nil; needsFinderPermission = false }
+        DiagnosticLogger.shared.record(.uninstallFinished, outcome: failed == 0 && !incomplete ? .success : .partial,
+                                       metrics: [.count: Int64(removed), .failed: Int64(failed)])
+        self.selectedApplication = failed > 0 || !verification.1.isEmpty || incomplete ? selectedApplication : nil
+        relatedFiles = verification.1
+        relatedFileScanMessage = verification.0.accessMessage
         isScanningRelatedFiles = false
         // The rescan clears the previous message; report this result afterwards so it stays visible.
         await scanApplications()
+        var messages = [String(localized: "Moved \(removed) items to the Trash")]
+        if failed > 0 { messages.append(String(localized: "\(failed) selected items remain.")) }
+        if let removalMessage { messages.append(removalMessage) }
+        if !verification.1.isEmpty { messages.append(String(localized: "Remaining files are listed below. New discoveries are unchecked; review them before removal.")) }
+        if incomplete { messages.append(verification.0.accessMessage!) }
+        presentUninstallResult(message: messages.joined(separator: " · "), isError: failed > 0 || incomplete,
+                               needsFinderPermission: needsFinderPermission,
+                               remainingItems: (verification.2 ? [selectedApplication.url] : []) + verification.1.filter(\.isSelected).map(\.url))
+    }
+
+    /// A single presentation path also lets layout tests exercise real failure UI without deleting files.
+    func presentUninstallResult(message: String, isError: Bool, needsFinderPermission: Bool, remainingItems: [URL] = []) {
+        uninstallMessageIsError = isError
+        uninstallNeedsFinderPermission = needsFinderPermission
+        uninstallRemainingItems = remainingItems
         operationMessage = message
     }
 
     func scanStorage() async {
         guard !isScanningStorage else { return }
         isScanningStorage = true
+        let started = Date()
         operationMessage = nil
         let mode = cleanupScanMode
         let running = RunningApplicationNames.current()
@@ -311,6 +400,7 @@ final class AppModel: ObservableObject {
                 : result[index].items.contains(where: \.isSelected)
         }
         cleanupCategories = result
+        DiagnosticLogger.shared.record(.storageScanFinished, metrics: [.count: Int64(result.reduce(0) { $0 + $1.itemCount }), .durationMS: Int64(Date().timeIntervalSince(started) * 1_000)])
         if let trashIssue = result.first(where: { $0.kind == .trash })?.accessMessage {
             operationMessage = trashIssue
         }
@@ -376,5 +466,8 @@ final class AppModel: ObservableObject {
 
     func dismissOperationMessage() {
         operationMessage = nil
+        uninstallMessageIsError = false
+        uninstallNeedsFinderPermission = false
+        uninstallRemainingItems = []
     }
 }

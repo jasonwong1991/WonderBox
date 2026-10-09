@@ -13,156 +13,176 @@ struct SettingsView: View {
     @State private var showLanguageRelaunch = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                PageHeader(title: String(localized: "Settings"), subtitle: String(localized: "Appearance, language and startup"))
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    PageHeader(title: String(localized: "Settings"), subtitle: String(localized: "Appearance, startup, updates and diagnostics"))
 
-                settingsSection(String(localized: "Appearance"), symbol: "paintbrush") {
-                    settingRow(String(localized: "Theme")) {
-                        Picker("Theme", selection: $appearance) {
-                            ForEach(AppAppearance.allCases) { item in
-                                Text(item.title).tag(item.rawValue)
-                            }
-                        }
-                        .labelsHidden()
-                        .frame(width: 150)
-                    }
-
-                    Divider()
-
-                    settingRow(String(localized: "Language")) {
-                        Picker("Language", selection: $language) {
-                            ForEach(AppLanguage.allCases) { item in
-                                Text(item.title).tag(item)
-                            }
-                        }
-                        .labelsHidden()
-                        .frame(width: 150)
-                        .onChange(of: language) { _, selected in
-                            guard selected != AppLanguage.current else { return }
-                            selected.apply()
-                            showLanguageRelaunch = true
-                        }
-                    }
-
-                    Divider()
-
-                    settingRow(String(localized: "Accent Color")) {
-                        HStack(spacing: 12) {
-                            ForEach(AccentChoice.allCases) { choice in
-                                Button {
-                                    accent = choice.rawValue
-                                } label: {
-                                    ZStack {
-                                        Circle().fill(choice.color)
-                                        if accent == choice.rawValue {
-                                            Image(systemName: "checkmark")
-                                                .font(.caption.bold())
-                                                .foregroundStyle(.white)
-                                        }
-                                    }
-                                    .frame(width: 24, height: 24)
+                    settingsSection(String(localized: "Appearance"), symbol: "paintbrush") {
+                        settingRow(String(localized: "Theme")) {
+                            Picker("Theme", selection: $appearance) {
+                                ForEach(AppAppearance.allCases) { item in
+                                    Text(item.title).tag(item.rawValue)
                                 }
-                                .buttonStyle(.plain)
-                                .help(choice.title)
-                                .accessibilityLabel(choice.title)
+                            }
+                            .labelsHidden()
+                            .frame(width: 150)
+                        }
+
+                        Divider()
+
+                        settingRow(String(localized: "Language")) {
+                            Picker("Language", selection: $language) {
+                                ForEach(AppLanguage.allCases) { item in
+                                    Text(item.title).tag(item)
+                                }
+                            }
+                            .labelsHidden()
+                            .frame(width: 150)
+                            .onChange(of: language) { _, selected in
+                                guard selected != AppLanguage.current else { return }
+                                selected.apply()
+                                showLanguageRelaunch = true
+                            }
+                        }
+
+                        Divider()
+
+                        settingRow(String(localized: "Accent Color")) {
+                            HStack(spacing: 12) {
+                                ForEach(AccentChoice.allCases) { choice in
+                                    Button {
+                                        accent = choice.rawValue
+                                    } label: {
+                                        ZStack {
+                                            Circle().fill(choice.color)
+                                            if accent == choice.rawValue {
+                                                Image(systemName: "checkmark")
+                                                    .font(.caption.bold())
+                                                    .foregroundStyle(.white)
+                                            }
+                                        }
+                                        .frame(width: 24, height: 24)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help(choice.title)
+                                    .accessibilityLabel(choice.title)
+                                }
                             }
                         }
                     }
-                }
 
-                settingsSection(String(localized: "Always Available"), symbol: "menubar.rectangle") {
-                    Toggle(isOn: $showMenuBar) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Menu bar shortcut")
-                            Text("Status overview and keep awake, even with the window closed")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                    settingsSection(String(localized: "Always Available"), symbol: "menubar.rectangle") {
+                        Toggle(isOn: $showMenuBar) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Menu bar shortcut")
+                                Text("Status overview and keep awake, even with the window closed")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        Divider()
+
+                        Toggle(isOn: $confirmQuitOnClose) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Ask before quitting")
+                                Text("When the window closes with the menu bar shortcut off")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                    }
+
+                    settingsSection(String(localized: "Startup"), symbol: "power") {
+                        Toggle(isOn: Binding(
+                            get: { launchAtLogin.isEnabled },
+                            set: { launchAtLogin.setEnabled($0) }
+                        )) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Launch at login")
+                                Text("Uses macOS Service Management")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        if launchAtLogin.requiresApproval {
+                            Text("Approve WonderBox in System Settings to enable launch at login.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Button("Manage Login Items…") { launchAtLogin.openSettings() }
+                    }
+
+                    if let message = launchAtLogin.message {
+                        InlineMessage(text: message, isError: true)
+                    }
+
+                    settingsSection(String(localized: "Permissions and Build"), symbol: "lock.shield") {
+                        capabilityRow(String(localized: "App Store core features"), status: String(localized: "Public APIs"), color: .healthy)
+                        Divider()
+                        capabilityRow(String(localized: "Fan control"), status: FanController.isAvailable ? String(localized: "Direct build") : String(localized: "Unavailable"), color: FanController.isAvailable ? .warning : .secondary)
+                        Divider()
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Full Disk Access")
+                                Text(model.supportsFullDiskAccess
+                                    ? String(localized: "Analyze the home folder and protected folders directly")
+                                    : String(localized: "The App Store build uses user-selected folder access"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            StatusPill(
+                                text: model.fullDiskAccessStatus.title,
+                                color: fullDiskAccessColor,
+                                symbol: model.fullDiskAccessStatus == .authorized ? "checkmark.shield" : "lock"
+                            )
+                            Button {
+                                model.refreshFullDiskAccessStatus()
+                            } label: {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                            .help("Re-check authorization")
+                            .accessibilityLabel("Re-check Full Disk Access status")
+                            Button("Grant Access") { model.openFullDiskAccessSettings() }
+                                .disabled(!model.supportsFullDiskAccess)
                         }
                     }
 
-                    Divider()
-
-                    Toggle(isOn: $confirmQuitOnClose) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Ask before quitting")
-                            Text("When the window closes with the menu bar shortcut off")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                    if UpdateController.isSupported {
+                        UpdateSettingsSection(updater: model.updater)
+                            .id("software-updates")
                     }
 
-                }
+                    DiagnosticsSettingsSection(diagnostics: model.diagnostics, version: model.updater.currentVersion, build: model.updater.buildVersion)
 
-                settingsSection(String(localized: "Startup"), symbol: "power") {
-                    Toggle(isOn: Binding(
-                        get: { launchAtLogin.isEnabled },
-                        set: { launchAtLogin.setEnabled($0) }
-                    )) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Launch at login")
-                            Text("Uses macOS Service Management")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                    HStack {
+                        Image(systemName: "checkmark.shield")
+                        Text("All scan results stay on this Mac")
                     }
-                    if launchAtLogin.requiresApproval {
-                        Text("Approve WonderBox in System Settings to enable launch at login.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    Button("Manage Login Items…") { launchAtLogin.openSettings() }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
                 }
-
-                if let message = launchAtLogin.message {
-                    InlineMessage(text: message, isError: true)
-                }
-
-                settingsSection(String(localized: "Permissions and Build"), symbol: "lock.shield") {
-                    capabilityRow(String(localized: "App Store core features"), status: String(localized: "Public APIs"), color: .healthy)
-                    Divider()
-                    capabilityRow(String(localized: "Fan control"), status: FanController.isAvailable ? String(localized: "Direct build") : String(localized: "Unavailable"), color: FanController.isAvailable ? .warning : .secondary)
-                    Divider()
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Full Disk Access")
-                            Text(model.supportsFullDiskAccess
-                                ? String(localized: "Analyze the home folder and protected folders directly")
-                                : String(localized: "The App Store build uses user-selected folder access"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        StatusPill(
-                            text: model.fullDiskAccessStatus.title,
-                            color: fullDiskAccessColor,
-                            symbol: model.fullDiskAccessStatus == .authorized ? "checkmark.shield" : "lock"
-                        )
-                        Button {
-                            model.refreshFullDiskAccessStatus()
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        .help("Re-check authorization")
-                        .accessibilityLabel("Re-check Full Disk Access status")
-                        Button("Grant Access") { model.openFullDiskAccessSettings() }
-                            .disabled(!model.supportsFullDiskAccess)
-                    }
-                }
-
-                HStack {
-                    Image(systemName: "checkmark.shield")
-                    Text("All scan results stay on this Mac")
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity)
+                .padding(28)
+                .frame(maxWidth: 820, alignment: .leading)
             }
-            .padding(28)
-            .frame(maxWidth: 820, alignment: .leading)
+            .onReceive(model.updater.$status) { status in
+                guard status == .checking, model.updater.userInitiatedCheck else { return }
+                // Also runs when a menu check opens Settings while its request is already in flight.
+                DispatchQueue.main.async { proxy.scrollTo("software-updates", anchor: .top) }
+            }
         }
         .onAppear {
             model.refreshFullDiskAccessStatus()
             launchAtLogin.refresh()
+        }
+        .sectionRefresh(.settings, busy: model.diagnostics.isWorking) {
+            launchAtLogin.refresh()
+            model.refreshFullDiskAccessStatus()
+            await model.diagnostics.refresh()
+            await model.updater.refreshCheck()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { launchAtLogin.refresh() }
@@ -193,6 +213,7 @@ struct SettingsView: View {
                 .font(.headline)
             content()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .appPanel()
     }
 

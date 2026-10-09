@@ -34,6 +34,16 @@
         }
       }
     },
+    "%@ usage over the last 60 seconds": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 最近 60 秒的使用率"
+          }
+        }
+      }
+    },
     "%@ used · %@ compressed": {
       "localizations": {
         "zh-Hans": {
@@ -210,12 +220,43 @@
         }
       }
     },
+    "%lld selected items remain.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仍有 %lld 个已选项目未移除。"
+          }
+        }
+      }
+    },
+    "%lld selected items remain. Check permissions and retry.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仍有 %lld 个已选项目未移除，请检查权限后重试。"
+          }
+        }
+      },
+      "extractionState": "stale"
+    },
     "%lld selected · %@": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "已选 %lld 项 · %@"
+          }
+        }
+      }
+    },
+    "%lld%%": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld%%"
           }
         }
       }
@@ -491,6 +532,17 @@
             "value": "外观、语言与启动行为"
           }
         }
+      },
+      "extractionState": "stale"
+    },
+    "Appearance, startup, updates and diagnostics": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外观、启动、更新与诊断"
+          }
+        }
       }
     },
     "Apple SMC · On-demand control": {
@@ -594,6 +646,16 @@
         }
       }
     },
+    "Ascending": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "升序"
+          }
+        }
+      }
+    },
     "Ascending; click to sort descending": {
       "localizations": {
         "zh-Hans": {
@@ -681,6 +743,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "已恢复系统自动控制"
+          }
+        }
+      }
+    },
+    "Automatically check for updates": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动检查更新"
           }
         }
       }
@@ -927,6 +999,36 @@
         }
       }
     },
+    "Check for Updates…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查更新…"
+          }
+        }
+      }
+    },
+    "Checking for updates…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在检查更新…"
+          }
+        }
+      }
+    },
+    "Checks GitHub at most once a day. Downloads only when you choose.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每天最多检查一次 GitHub 正式发布版，仅在你选择下载时获取更新。"
+          }
+        }
+      }
+    },
     "Choose": {
       "localizations": {
         "zh-Hans": {
@@ -1095,6 +1197,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "空间清理"
+          }
+        }
+      }
+    },
+    "Clear Logs": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除日志"
+          }
+        }
+      }
+    },
+    "Clear Logs…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除日志…"
+          }
+        }
+      }
+    },
+    "Clear local diagnostic logs?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除本地诊断日志？"
           }
         }
       }
@@ -1289,6 +1421,16 @@
         }
       }
     },
+    "Descending": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "降序"
+          }
+        }
+      }
+    },
     "Descending; click to sort ascending": {
       "localizations": {
         "zh-Hans": {
@@ -1308,6 +1450,27 @@
           }
         }
       }
+    },
+    "Details": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "详细信息"
+          }
+        }
+      }
+    },
+    "Details…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "详细信息…"
+          }
+        }
+      },
+      "extractionState": "stale"
     },
     "Developer Caches": {
       "localizations": {
@@ -1335,6 +1498,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "设备备份"
+          }
+        }
+      }
+    },
+    "Diagnostic logs are unavailable. Check folder permissions.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "诊断日志暂不可用，请检查文件夹权限。"
+          }
+        }
+      }
+    },
+    "Diagnostic logs exported. Share the ZIP with your issue report.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "诊断日志已导出，可将 ZIP 附到问题反馈中。"
+          }
+        }
+      }
+    },
+    "Diagnostics": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "诊断"
           }
         }
       }
@@ -1409,12 +1602,72 @@
         }
       }
     },
+    "Download": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载"
+          }
+        }
+      }
+    },
+    "Download Update": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载更新"
+          }
+        }
+      }
+    },
+    "Download Update…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载更新…"
+          }
+        }
+      }
+    },
     "Download caches for npm, pnpm, uv, Go, Cargo and more; rebuilt on the next install": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "npm、pnpm、uv、Go、Cargo 等下载缓存，安装时自动重建"
+          }
+        }
+      }
+    },
+    "Download verification failed. Please download again.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载校验未通过，请重新下载。"
+          }
+        }
+      }
+    },
+    "Download verified with SHA-256": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载已通过 SHA-256 校验"
+          }
+        }
+      }
+    },
+    "Downloading… %lld%%": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在下载… %lld%%"
           }
         }
       }
@@ -1450,12 +1703,62 @@
         }
       }
     },
+    "Enable Finder under WonderBox in Automation. This permission is separate from Full Disk Access and administrator authorization.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在“自动化”中启用 WonderBox 下的 Finder。此权限与完全磁盘访问、管理员授权分别管理。"
+          }
+        }
+      }
+    },
     "Expanded": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "已展开"
+          }
+        }
+      }
+    },
+    "Export": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出"
+          }
+        }
+      }
+    },
+    "Export Diagnostic Logs": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出诊断日志"
+          }
+        }
+      }
+    },
+    "Export Logs…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出日志…"
+          }
+        }
+      }
+    },
+    "Exports include app/macOS versions and CPU architecture. Review the ZIP before attaching it to a GitHub issue.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出内容包含应用与 macOS 版本、处理器架构。提交 GitHub issue 前，请先检查 ZIP 内容。"
           }
         }
       }
@@ -1583,6 +1886,26 @@
         }
       }
     },
+    "Finder has not finished responding and may still be moving items. Check Finder before retrying.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finder 尚未完成响应，可能仍在移动项目。请先查看 Finder，再决定是否重试。"
+          }
+        }
+      }
+    },
+    "Finder returned an invalid Trash response.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finder 返回的废纸篓操作结果无效。"
+          }
+        }
+      }
+    },
     "Finder returned an unexpected Trash size; please rescan": {
       "localizations": {
         "zh-Hans": {
@@ -1703,6 +2026,36 @@
         }
       }
     },
+    "GitHub Releases": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub 发布页"
+          }
+        }
+      }
+    },
+    "GitHub did not return a release. Try again later.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub 未返回版本信息，请稍后重试。"
+          }
+        }
+      }
+    },
+    "GitHub is limiting requests. Try again later.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub 请求频率受限，请稍后重试。"
+          }
+        }
+      }
+    },
     "Go to memory optimization": {
       "localizations": {
         "zh-Hans": {
@@ -1763,6 +2116,17 @@
         }
       }
     },
+    "If macOS lists the background service separately, enable it in Full Disk Access too. After changing access, quit and reopen WonderBox before retrying.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如果系统单独列出后台服务，也请开启其完全磁盘访问权限。修改权限后，退出并重新打开 WonderBox 再重试。"
+          }
+        }
+      },
+      "extractionState": "stale"
+    },
     "Indefinitely": {
       "localizations": {
         "zh-Hans": {
@@ -1789,6 +2153,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "安装 %@ · %@"
+          }
+        }
+      }
+    },
+    "Installed version": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前版本"
           }
         }
       }
@@ -1926,6 +2300,16 @@
         }
       }
     },
+    "Keep local diagnostic logs": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记录本地诊断日志"
+          }
+        }
+      }
+    },
     "Language": {
       "localizations": {
         "zh-Hans": {
@@ -1946,12 +2330,32 @@
         }
       }
     },
+    "Last 60 seconds": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近 60 秒"
+          }
+        }
+      }
+    },
     "Last Used": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "最近使用"
+          }
+        }
+      }
+    },
+    "Last checked: %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次检查：%@"
           }
         }
       }
@@ -2036,6 +2440,26 @@
         }
       }
     },
+    "Local log size": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本地日志大小"
+          }
+        }
+      }
+    },
+    "Local logs cleared.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本地日志已清除。"
+          }
+        }
+      }
+    },
     "Logs": {
       "localizations": {
         "zh-Hans": {
@@ -2052,6 +2476,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "日志与报告"
+          }
+        }
+      }
+    },
+    "Logs could not be cleared. Check folder permissions.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日志清除失败，请检查文件夹权限。"
+          }
+        }
+      }
+    },
+    "Logs could not be exported. Choose another location.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日志导出失败，请选择其他位置。"
           }
         }
       }
@@ -2284,7 +2728,8 @@
             "value": "已将 %1$lld 项移入废纸篓，%2$lld 项无法移除"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "Name": {
       "localizations": {
@@ -2457,6 +2902,16 @@
         }
       }
     },
+    "Not sorted": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未按此列排序"
+          }
+        }
+      }
+    },
     "Not supported on this Mac": {
       "localizations": {
         "zh-Hans": {
@@ -2517,6 +2972,16 @@
         }
       }
     },
+    "Only the selected related files will be moved to the Trash. The app already in the Trash will be kept.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅将已选关联文件移到废纸篓，保留已在废纸篓中的应用本体。"
+          }
+        }
+      }
+    },
     "Open %@": {
       "localizations": {
         "zh-Hans": {
@@ -2526,6 +2991,38 @@
           }
         }
       }
+    },
+    "Open App Management": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开应用管理"
+          }
+        }
+      },
+      "extractionState": "stale"
+    },
+    "Open Automation Settings": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开自动化设置"
+          }
+        }
+      }
+    },
+    "Open Full Disk Access": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开完全磁盘访问"
+          }
+        }
+      },
+      "extractionState": "stale"
     },
     "Open Main Window": {
       "localizations": {
@@ -2573,6 +3070,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "系统"
+          }
+        }
+      }
+    },
+    "Operation results and error codes only. No filenames, paths, account details or file contents.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅记录操作结果与错误码，不记录文件名、路径、账号信息或文件内容。"
           }
         }
       }
@@ -2747,6 +3254,16 @@
         }
       }
     },
+    "Previously exported ZIP files are kept.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已导出的 ZIP 文件会保留。"
+          }
+        }
+      }
+    },
     "Processor": {
       "localizations": {
         "zh-Hans": {
@@ -2827,12 +3344,32 @@
         }
       }
     },
+    "Quit %@ before removing its files, then try again.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先退出 %@，再重试移除其文件。"
+          }
+        }
+      }
+    },
     "Quit Now": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "直接退出"
+          }
+        }
+      }
+    },
+    "Quit WonderBox, unzip the download and replace the app in Applications. Updates are not installed automatically.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出 WonderBox，解压下载文件，再替换“应用程序”中的 App。更新不会自动安装。"
           }
         }
       }
@@ -2941,6 +3478,26 @@
         }
       }
     },
+    "Refresh %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新%@"
+          }
+        }
+      }
+    },
+    "Refresh Current Tab": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新当前页面"
+          }
+        }
+      }
+    },
     "Refresh Status": {
       "localizations": {
         "zh-Hans": {
@@ -3011,12 +3568,52 @@
         }
       }
     },
+    "Release Notes": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新说明"
+          }
+        }
+      }
+    },
     "Released %@": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "已释放 %@"
+          }
+        }
+      }
+    },
+    "Remaining files are listed below. New discoveries are unchecked; review them before removal.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下方保留剩余文件；新发现的项目默认不勾选，请检查后再移除。"
+          }
+        }
+      }
+    },
+    "Removal was cancelled. Items not moved are still selected; you can retry.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已取消移除。未移除的项目仍保持选中，可再次尝试。"
+          }
+        }
+      }
+    },
+    "Remove Related Files": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除关联文件"
           }
         }
       }
@@ -3154,6 +3751,16 @@
         }
       }
     },
+    "Segment": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "采样区段"
+          }
+        }
+      }
+    },
     "Select %@": {
       "localizations": {
         "zh-Hans": {
@@ -3240,6 +3847,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "在 Finder 中显示%@"
+          }
+        }
+      }
+    },
+    "Show Background Service": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示后台服务"
+          }
+        }
+      },
+      "extractionState": "stale"
+    },
+    "Show Background Service…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示后台服务…"
+          }
+        }
+      },
+      "extractionState": "stale"
+    },
+    "Show Remaining Items in Finder": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Finder 中显示未移除项目"
           }
         }
       }
@@ -3334,6 +3973,56 @@
         }
       }
     },
+    "Software Updates": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "软件更新"
+          }
+        }
+      }
+    },
+    "Some items are locked. Check Locked in Finder's Get Info, then retry.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分项目已锁定，请在 Finder“显示简介”中检查“已锁定”状态后重试。"
+          }
+        }
+      }
+    },
+    "Some items are still in their original location. Show them in Finder to review them, or export diagnostic logs from Settings.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分项目仍在原位置。可在 Finder 中查看，或前往设置导出诊断日志。"
+          }
+        }
+      }
+    },
+    "Some items disappeared during removal. Rescan to refresh the list.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分项目在移除过程中已消失，请重新扫描以更新列表。"
+          }
+        }
+      }
+    },
+    "Some locations could not be read. The related-file list may be incomplete. Grant Full Disk Access, then rescan.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分位置读取失败，关联文件列表可能不完整。请授予完全磁盘访问权限后重新扫描。"
+          }
+        }
+      }
+    },
     "Sort": {
       "localizations": {
         "zh-Hans": {
@@ -3350,6 +4039,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "切换为升序"
+          }
+        }
+      }
+    },
+    "Sort by name": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按名称排序"
+          }
+        }
+      }
+    },
+    "Sort by size": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按大小排序"
           }
         }
       }
@@ -3584,12 +4293,122 @@
         }
       }
     },
+    "The app is already in the Trash or removed. Only selected related files will be moved.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用已在废纸篓中或已移除，本次仅移动已选关联文件。"
+          }
+        }
+      }
+    },
     "The application signature could not be verified": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "应用签名验证失败"
+          }
+        }
+      }
+    },
+    "The background service did not find your Trash folder. Reopen WonderBox and retry.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后台服务未找到废纸篓文件夹，请重新打开 WonderBox 后重试。"
+          }
+        }
+      }
+    },
+    "The background service did not move items across disks. Use Finder to move them to that disk's Trash.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后台服务未执行跨磁盘移动，请使用 Finder 将项目移到所在磁盘的废纸篓。"
+          }
+        }
+      }
+    },
+    "The background service encountered a folder ownership or access-permission error. Check Sharing & Permissions in Finder's Get Info.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后台服务遇到文件夹所有权或访问权限错误，请检查 Finder“显示简介”中的“共享与权限”。"
+          }
+        }
+      }
+    },
+    "The background service left some items in place. Export diagnostic logs if retrying does not help.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后台服务未移除部分项目，如重试后问题仍在，请导出诊断日志。"
+          }
+        }
+      }
+    },
+    "The background service reported a file-operation error (%lld). Export diagnostic logs if it persists.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后台服务报告文件操作错误（%lld），如问题持续，请导出诊断日志。"
+          }
+        }
+      }
+    },
+    "The background service skipped an unsupported path or symbolic link. Show the item in Finder to review it.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后台服务跳过了不支持的路径或符号链接，请在 Finder 中检查该项目。"
+          }
+        }
+      }
+    },
+    "The connection failed. Try again or open GitHub Releases.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接失败，请重试或打开 GitHub 发布页。"
+          }
+        }
+      }
+    },
+    "The download could not be saved. Choose another location.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载文件保存失败，请选择其他位置。"
+          }
+        }
+      }
+    },
+    "The download size does not match the release.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载文件大小与发布信息不符。"
+          }
+        }
+      }
+    },
+    "The downloaded file is not an app archive.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载文件不是应用压缩包。"
           }
         }
       }
@@ -3624,12 +4443,32 @@
         }
       }
     },
+    "The release information is invalid.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "版本信息格式有误。"
+          }
+        }
+      }
+    },
     "The sandbox does not allow reading other processes’ memory usage": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "沙盒环境不允许读取其他进程的内存占用"
+          }
+        }
+      }
+    },
+    "The selected item or Trash is on a read-only volume.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选项目或废纸篓位于只读磁盘上。"
           }
         }
       }
@@ -3685,6 +4524,16 @@
         }
       }
     },
+    "There is not enough space to create a Trash destination.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "磁盘空间不足，废纸篓目标目录创建失败。"
+          }
+        }
+      }
+    },
     "Thermals Normal": {
       "localizations": {
         "zh-Hans": {
@@ -3721,6 +4570,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "当前机型未开放 SMC 风扇控制"
+          }
+        }
+      }
+    },
+    "This release has no compatible download.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该版本尚无兼容的下载文件。"
+          }
+        }
+      }
+    },
+    "This release has no valid SHA-256 checksum.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "该版本缺少有效的 SHA-256 校验信息。"
           }
         }
       }
@@ -3906,6 +4775,36 @@
         }
       }
     },
+    "Up to 2 MB, retained for 7 days. Turning logging off clears local logs. Nothing is uploaded automatically.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日志上限 2 MB，最多保留 7 天；关闭记录会清除本地日志，不会自动上传任何内容。"
+          }
+        }
+      }
+    },
+    "Update download progress": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新下载进度"
+          }
+        }
+      }
+    },
+    "Update operation cancelled.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新操作已取消。"
+          }
+        }
+      }
+    },
     "Upload %@": {
       "localizations": {
         "zh-Hans": {
@@ -3922,6 +4821,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "运行时间"
+          }
+        }
+      }
+    },
+    "Usage": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用率"
           }
         }
       }
@@ -3956,6 +4865,26 @@
         }
       }
     },
+    "Verifying download…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在校验下载…"
+          }
+        }
+      }
+    },
+    "Version %@ is available": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发现新版本 %@"
+          }
+        }
+      }
+    },
     "View %@ items": {
       "localizations": {
         "zh-Hans": {
@@ -3972,6 +4901,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "查看并选择项目"
+          }
+        }
+      }
+    },
+    "View release notes on GitHub.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub 查看更新说明。"
           }
         }
       }
@@ -4002,6 +4941,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在等待下一次采样…"
+          }
+        }
+      }
+    },
+    "Waiting for usage samples…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在等待使用率采样…"
           }
         }
       }
@@ -4109,12 +5058,32 @@
     "WonderBox": {
       "shouldTranslate": false
     },
+    "WonderBox is up to date": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WonderBox 已是最新版本"
+          }
+        }
+      }
+    },
     "Working…": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "正在处理"
+          }
+        }
+      }
+    },
+    "You are offline. Connect to the internet and try again.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前未连接网络，请联网后重试。"
           }
         }
       }
@@ -4145,6 +5114,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "本机保存的 iPhone 与 iPad 备份"
+          }
+        }
+      }
+    },
+    "macOS blocked the background service from opening your Trash. Review Full Disk Access for WonderBox. Administrator authorization alone does not grant this access.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS 阻止后台服务访问废纸篓，请检查 WonderBox 的完全磁盘访问权限。管理员授权并不包含此权限。"
+          }
+        }
+      },
+      "extractionState": "stale"
+    },
+    "macOS blocked the background service's file access. Review Full Disk Access and App Management for WonderBox, then retry.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS 阻止后台服务访问文件，请检查 WonderBox 的完全磁盘访问和应用管理权限后重试。"
+          }
+        }
+      },
+      "extractionState": "stale"
+    },
+    "macOS denied the background service access to your Trash. This does not establish whether WonderBox has Full Disk Access.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS 拒绝后台服务访问废纸篓。这并不表示 WonderBox 未获完全磁盘访问权限。"
+          }
+        }
+      }
+    },
+    "macOS denied the background service's file operation. Export diagnostic logs from Settings to investigate the cause.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS 拒绝了后台服务的文件操作。可从设置导出诊断日志以排查原因。"
+          }
+        }
+      }
+    },
+    "macOS did not move some items to the Trash: %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS 未能将部分项目移入废纸篓：%@"
           }
         }
       }

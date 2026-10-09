@@ -58,6 +58,10 @@ private struct MemoryContent: View {
             .frame(maxWidth: 1_050, alignment: .leading)
         }
         .task { await optimizer.refreshApplications() }
+        .sectionRefresh(.memory, busy: model.isRefreshingMetrics || optimizer.isRefreshingApplications || optimizer.isOptimizing) {
+            await model.refreshMetrics()
+            await optimizer.refreshApplications()
+        }
         .confirmationDialog(
             "Force Quit?",
             isPresented: $showForceQuitConfirmation,

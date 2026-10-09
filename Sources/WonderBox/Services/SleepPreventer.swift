@@ -67,6 +67,13 @@ final class SleepPreventer: ObservableObject {
         remaining = nil
     }
 
+    /// Refreshing the tab must not start a session or extend its expiry.
+    func refreshStatus() {
+        guard isActive, let expiresAt else { return }
+        let value = expiresAt.timeIntervalSinceNow
+        if value <= 0 { disable() } else { remaining = value }
+    }
+
     private func startCountdown() {
         countdownTask = Task { [weak self] in
             while !Task.isCancelled {

@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct ApplicationsView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var showOperationDetails = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -12,24 +13,50 @@ struct ApplicationsView: View {
                 subtitle: String(localized: "Applications and related files"),
                 actionTitle: String(localized: "Choose App"),
                 actionSymbol: "plus",
-            isWorking: model.isScanningApplications,
+                isWorking: model.isScanningApplications,
                 action: chooseApplication
             )
 
             if let message = model.operationMessage {
-                InlineMessage(text: message, dismiss: model.dismissOperationMessage)
+                HStack(alignment: .top, spacing: 10) {
+                    InlineMessage(text: message, isError: model.uninstallMessageIsError, dismiss: model.dismissOperationMessage)
+                        .lineLimit(3)
+                    Button("Details") { showOperationDetails = true }
+                        .fixedSize()
+                        .padding(.top, 8)
+                        .popover(isPresented: $showOperationDetails) {
+                            ScrollView {
+                                Text(message).font(.body).textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                            }
+                            .frame(width: 460, height: 240)
+                        }
+                }
+                if model.uninstallNeedsFinderPermission {
+                    FinderPermissionGuidance()
+                }
+                if model.uninstallMessageIsError, !model.uninstallRemainingItems.isEmpty {
+                    Button("Show Remaining Items in Finder") {
+                        NSWorkspace.shared.activateFileViewerSelecting(model.uninstallRemainingItems)
+                    }
+                }
             }
 
             HSplitView {
                 applicationList
                     .disabled(model.isUninstallingApplication)
-                    .frame(minWidth: 320, idealWidth: 370, maxWidth: 440)
+                    .frame(minWidth: 260, idealWidth: 330, maxWidth: 440)
                 applicationDetail
-                    .frame(minWidth: 440, maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
             }
+            .frame(minHeight: 260, maxHeight: .infinity)
             .appPanel(padding: 0)
         }
         .padding(28)
+        .onChange(of: model.operationMessage) { _, _ in showOperationDetails = false }
+        .sectionRefresh(.applications, busy: model.isScanningApplications || model.isScanningRelatedFiles || model.isUninstallingApplication) {
+            await model.refreshApplicationInventory()
+        }
         .onAppear {
             guard model.applications.isEmpty else { return }
             Task { await model.scanApplications() }
@@ -160,6 +187,7 @@ struct ApplicationsView: View {
     private var applicationDetail: some View {
         if let application = model.selectedApplication {
             ApplicationDetail(application: application).id(application.id)
+                .disabled(model.isUninstallingApplication)
         } else {
             EmptyContentView(
                 symbol: "shippingbox",
@@ -183,6 +211,21 @@ struct ApplicationsView: View {
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task { await model.addApplication(at: url) }
+    }
+}
+
+struct FinderPermissionGuidance: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button("Open Automation Settings") {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            Text("Enable Finder under WonderBox in Automation. This permission is separate from Full Disk Access and administrator authorization.")
+                .font(.caption).foregroundStyle(.secondary)
+                .lineLimit(3)
+        }
     }
 }
 
@@ -250,6 +293,7 @@ private struct ApplicationDetail: View {
     private var selectedRelatedSize: UInt64 {
         model.relatedFiles.filter(\.isSelected).reduce(0) { $0 + $1.size }
     }
+    private var removesBundle: Bool { ApplicationScanner.needsBundleRemoval(application.url) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -261,6 +305,7 @@ private struct ApplicationDetail: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(application.name)
                         .font(.system(size: 21, weight: .bold, design: .rounded))
+                        .lineLimit(2)
                     Text(application.bundleIdentifier ?? application.url.path)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -278,6 +323,7 @@ private struct ApplicationDetail: View {
                     .buttonStyle(.borderless)
                     .help("Open app")
                     .accessibilityLabel("Open \(application.name)")
+                    .disabled(!removesBundle)
 
                     Button {
                         NSWorkspace.shared.activateFileViewerSelecting([application.url])
@@ -330,6 +376,20 @@ private struct ApplicationDetail: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 18)
 
+                if !removesBundle {
+                    Text("The app is already in the Trash or removed. Only selected related files will be moved.")
+                        .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 20)
+                }
+                if let message = model.relatedFileScanMessage {
+                    InlineMessage(text: message, isError: true).padding(.horizontal, 20)
+                    HStack {
+                        Button("Grant Access") { model.openFullDiskAccessSettings() }
+                            .disabled(!model.supportsFullDiskAccess)
+                        Button("Rescan") { Task { await model.selectApplication(application) } }
+                            .disabled(model.isScanningRelatedFiles || isRemoving)
+                    }.padding(.horizontal, 20)
+                }
+
                 if model.isScanningRelatedFiles {
                     ProgressView("Finding related files…")
                         .controlSize(.small)
@@ -358,18 +418,19 @@ private struct ApplicationDetail: View {
                     Text("Will move to Trash")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(AppFormatters.bytes(application.size + selectedRelatedSize))
+                    Text(AppFormatters.bytes((removesBundle ? application.size : 0) + selectedRelatedSize))
                         .font(.system(.body, design: .rounded, weight: .semibold))
                 }
                 Spacer()
                 Button(role: .destructive) {
                     showConfirmation = true
                 } label: {
-                    Label(isRemoving ? "Uninstalling…" : "Uninstall", systemImage: "trash")
+                    Label(isRemoving ? "Uninstalling…" : removesBundle ? "Uninstall" : "Remove Related Files", systemImage: "trash")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.critical)
-                .disabled(isRemoving || model.isScanningRelatedFiles)
+                .disabled(isRemoving || model.isScanningRelatedFiles || (!removesBundle && !model.relatedFiles.contains(where: \.isSelected)))
+                .accessibilityIdentifier("uninstaller.remove")
             }
             .padding(18)
         }
@@ -387,7 +448,7 @@ private struct ApplicationDetail: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("The app and the selected related files will be moved to the Trash.")
+            Text(removesBundle ? "The app and the selected related files will be moved to the Trash." : "Only the selected related files will be moved to the Trash. The app already in the Trash will be kept.")
         }
     }
 }

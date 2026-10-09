@@ -19,9 +19,9 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.4.0</string>
+    <string>0.5.0</string>
     <key>CFBundleVersion</key>
-    <string>4</string>
+    <string>5</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.utilities</string>
     <key>LSMinimumSystemVersion</key>
@@ -29,7 +29,7 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSAppleEventsUsageDescription</key>
-    <string>WonderBox reads the size of the Trash and empties it only when you confirm.</string>
+    <string>WonderBox uses Finder to move selected items to the Trash, read its size and empty it only when you confirm.</string>
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
 </dict>

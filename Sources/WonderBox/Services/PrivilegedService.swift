@@ -1,3 +1,4 @@
+import AppKit
 import Darwin
 import Foundation
 import Security
@@ -11,11 +12,14 @@ struct PrivilegedServiceResult: Sendable {
 /// Client for the root helper daemon shared by fan control, memory maintenance and protected app removal.
 enum PrivilegedService {
     /// Keep in sync with `protocolVersion` in Sources/WonderFanHelper/main.swift.
-    static let protocolVersion = "5"
+    static let protocolVersion = "6"
     private static let socketPath = "/var/run/com.wondercraft.WonderBox.fan.sock"
     private static let helperLabel = "com.wondercraft.WonderBox.FanHelper"
     private static let helperName = "WonderFanHelper"
     static let clientAuthorizationPath = "/Library/PrivilegedHelperTools/com.wondercraft.WonderBox.FanHelper.client.json"
+    static let installedHelperURL = URL(fileURLWithPath: "/Library/PrivilegedHelperTools/com.wondercraft.WonderBox.FanHelper")
+    // v6 adds compact per-item failure details to a response containing the original paths.
+    private static let maximumReplySize = 131_072
     @MainActor private static var readinessTask: Task<PrivilegedServiceResult, Never>?
 
     enum Reply: Sendable {
@@ -40,7 +44,10 @@ enum PrivilegedService {
         }.value
         if !ready {
             let installation = install()
-            guard installation.succeeded else { return installation }
+            guard installation.succeeded else {
+                DiagnosticLogger.shared.record(.helperPreparation, outcome: .failure, errorFamily: .helper)
+                return installation
+            }
             ready = await Task.detached(priority: .userInitiated) {
                 for _ in 0..<30 {
                     if serviceVersion() == protocolVersion { return true }
@@ -49,6 +56,7 @@ enum PrivilegedService {
                 return false
             }.value
         }
+        DiagnosticLogger.shared.record(.helperPreparation, outcome: ready ? .success : .failure, errorFamily: ready ? nil : .helper)
         return PrivilegedServiceResult(
             succeeded: ready,
             message: ready ? String(localized: "Background service is ready") : String(localized: "Background service failed to start")
@@ -105,8 +113,8 @@ enum PrivilegedService {
         guard written else { return .unavailable }
         var reply = Data()
         var bytes = [UInt8](repeating: 0, count: 4096)
-        while reply.count < 65_536 {
-            let count = Darwin.read(descriptor, &bytes, min(bytes.count, 65_536 - reply.count))
+        while reply.count < maximumReplySize {
+            let count = Darwin.read(descriptor, &bytes, min(bytes.count, maximumReplySize - reply.count))
             if count < 0 && errno == EINTR { continue }
             guard count > 0 else { return .unavailable }
             reply.append(contentsOf: bytes.prefix(count))
@@ -144,6 +152,13 @@ enum PrivilegedService {
             guard let data = Data(base64Encoded: payload), let result = try? JSONDecoder().decode(TrashResponse.self, from: data) else {
                 return .failure(PrivilegedServiceFailure(message: String(localized: "Background service returned an invalid response")))
             }
+            var metrics: [DiagnosticMetric: Int64] = [.count: Int64(result.moved), .failed: Int64(result.failed.count)]
+            if let failure = result.failures.first {
+                metrics[.errorCode] = Int64(failure.errorCode)
+                metrics[.failureStage] = Int64(failure.stage.rawValue)
+            }
+            DiagnosticLogger.shared.record(.helperTrashFinished, outcome: result.failed.isEmpty ? .success : .partial,
+                                           errorFamily: result.failed.isEmpty ? nil : .fileSystem, metrics: metrics)
             return .success(result)
         case let .failure(message): return .failure(PrivilegedServiceFailure(message: message))
         case .unavailable: return .failure(PrivilegedServiceFailure(message: String(localized: "Lost connection to the background service")))
@@ -151,6 +166,11 @@ enum PrivilegedService {
     }
 
     struct PrivilegedServiceFailure: Error { let message: String }
+
+    @MainActor
+    static func revealInstalledHelper() {
+        NSWorkspace.shared.activateFileViewerSelecting([installedHelperURL])
+    }
 
     @MainActor
     private static func install() -> PrivilegedServiceResult {
@@ -186,8 +206,11 @@ enum PrivilegedService {
         ]
         switch AdministratorShell.run(commands.joined(separator: " && ")) {
         case .success:
+            DiagnosticLogger.shared.record(.helperInstallation)
             return PrivilegedServiceResult(succeeded: true, message: String(localized: "Background service installed"))
         case let .failure(failure):
+            DiagnosticLogger.shared.record(.helperInstallation, outcome: failure.isCancelled ? .cancelled : .failure, errorFamily: .helper,
+                                           metrics: [.errorCode: Int64(failure.code)])
             return PrivilegedServiceResult(
                 succeeded: false,
                 message: failure.isCancelled ? String(localized: "Administrator authorization cancelled") : failure.message

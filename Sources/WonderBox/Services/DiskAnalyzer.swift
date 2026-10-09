@@ -85,6 +85,7 @@ enum DiskAnalyzer {
         AsyncStream { continuation in
             let cancellation = ScanCancellation()
             let worker = Task.detached(priority: .utility) {
+                let started = Date()
                 defer { continuation.finish() }
                 do {
                     let items = try list(directory, isCancelled: { cancellation.isCancelled })
@@ -110,9 +111,17 @@ enum DiskAnalyzer {
                         }
                     }
                     progress.finish()
-                    if !cancellation.isCancelled { continuation.yield(.finished) }
+                    if !cancellation.isCancelled {
+                        DiagnosticLogger.shared.record(.diskScanFinished, metrics: [.count: Int64(items.count), .durationMS: Int64(Date().timeIntervalSince(started) * 1_000)])
+                        continuation.yield(.finished)
+                    }
                 } catch is CancellationError { return }
-                catch { if !cancellation.isCancelled { continuation.yield(.failed(error.localizedDescription)) } }
+                catch {
+                    if !cancellation.isCancelled {
+                        DiagnosticLogger.shared.record(.diskScanFinished, outcome: .failure, errorFamily: .fileSystem, metrics: [.errorCode: Int64((error as NSError).code)])
+                        continuation.yield(.failed(error.localizedDescription))
+                    }
+                }
             }
             continuation.onTermination = { _ in cancellation.cancel(); worker.cancel() }
         }
@@ -140,6 +149,7 @@ enum DiskAnalyzer {
         let rootPath = root.standardizedFileURL.path
         var removed = 0
         var failed = 0
+        var firstErrorCode: Int64?
         for url in urls {
             let candidate = url.standardizedFileURL
             guard candidate.path.hasPrefix(rootPath + "/"), candidate.path != rootPath else {
@@ -152,8 +162,13 @@ enum DiskAnalyzer {
                 removed += 1
             } catch {
                 failed += 1
+                firstErrorCode = firstErrorCode ?? Int64((error as NSError).code)
             }
         }
+        var metrics: [DiagnosticMetric: Int64] = [.count: Int64(removed), .failed: Int64(failed)]
+        if let firstErrorCode { metrics[.errorCode] = firstErrorCode }
+        DiagnosticLogger.shared.record(.diskTrashFinished, outcome: failed > 0 ? .partial : .success,
+                                       errorFamily: failed > 0 ? .fileSystem : nil, metrics: metrics)
         return (removed, failed)
     }
 }

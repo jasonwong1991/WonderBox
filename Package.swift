@@ -1,6 +1,10 @@
 // swift-tools-version: 6.0
 
 import PackageDescription
+import Foundation
+
+let helperInfoPlist = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+    .appendingPathComponent("Sources/WonderFanHelper/Resources/Info.plist").path
 
 let package = Package(
     name: "WonderBox",
@@ -50,7 +54,11 @@ let package = Package(
             name: "WonderFanHelper",
             dependencies: ["CSMC", "WonderSupport"],
             path: "Sources/WonderFanHelper",
-            linkerSettings: [.linkedFramework("Security")]
+            exclude: ["Resources/Info.plist"],
+            linkerSettings: [
+                .linkedFramework("Security"),
+                .unsafeFlags(["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", helperInfoPlist])
+            ]
         ),
         .executableTarget(
             name: "WonderMaintenanceHelper",

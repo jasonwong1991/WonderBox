@@ -43,6 +43,7 @@ rm -rf "$ICONSET"
 
 codesign --force --sign - "$CONTENTS/Helpers/WonderFanHelper"
 codesign --force --sign - "$CONTENTS/Helpers/WonderMaintenanceHelper"
+python3 scripts/configure_helper_identity.py "$APP"
 codesign --force --deep --sign - "$APP"
 
 echo "$APP"

@@ -5,7 +5,7 @@ import Security
 import WonderSupport
 
 /// Keep in sync with `PrivilegedService.protocolVersion` in Sources/WonderBox/Services/PrivilegedService.swift.
-private let protocolVersion = "5"
+private let protocolVersion = "6"
 private let defaultSocketPath = "/var/run/com.wondercraft.WonderBox.fan.sock"
 private let clientAuthorizationPath = "/Library/PrivilegedHelperTools/com.wondercraft.WonderBox.FanHelper.client.json"
 

@@ -8,11 +8,14 @@ struct CleanupDetailSheet: View {
     @State private var selected: Set<URL>
     @State private var search = ""
     @State private var expandedApps = Set<String>()
+    @State private var ordering: CleanupDetailOrdering
 
-    init(category: CleanupCategory?, initiallyExpandedApps: Set<String> = []) {
+    init(category: CleanupCategory?, initiallyExpandedApps: Set<String> = [], ordering: CleanupDetailOrdering? = nil) {
         self.category = category
         _selected = State(initialValue: Set(category?.items.filter(\.isSelected).map(\.id) ?? []))
         _expandedApps = State(initialValue: initiallyExpandedApps)
+        let grouped = category.map { [.caches, .browserCaches, .wechatCaches, .wecomCaches].contains($0.kind) } ?? true
+        _ordering = State(initialValue: ordering ?? CleanupDetailOrdering(field: grouped ? .name : .size, ascending: grouped))
     }
 
     private var kind: CleanupKind { category?.kind ?? .caches }
@@ -20,7 +23,7 @@ struct CleanupDetailSheet: View {
     private var isGrouped: Bool { [.caches, .browserCaches, .wechatCaches, .wecomCaches].contains(kind) }
     private var visibleIDs: Set<URL> {
         if isGrouped { return Set(displayedGroups.flatMap(\.items).map(\.id)) }
-        return Set(items.filter { search.isEmpty || $0.url.path.localizedCaseInsensitiveContains(search) }.map(\.id))
+        return Set(displayedItems.map(\.id))
     }
     private var allSelected: Bool { !visibleIDs.isEmpty && visibleIDs.isSubset(of: selected) }
     private var isBlocked: Bool { category?.accessMessage != nil }
@@ -30,8 +33,11 @@ struct CleanupDetailSheet: View {
     }
     private var groups: [ApplicationCacheGroup] { ApplicationCacheGroup.groups(items) }
     private var displayedGroups: [ApplicationCacheGroup] {
-        groups.filter { group in search.isEmpty || group.application.name.localizedCaseInsensitiveContains(search)
-            || group.items.contains { $0.url.path.localizedCaseInsensitiveContains(search) } }
+        ordering.groups(groups.filter { group in search.isEmpty || group.application.name.localizedCaseInsensitiveContains(search)
+            || group.items.contains { $0.url.path.localizedCaseInsensitiveContains(search) } })
+    }
+    private var displayedItems: [CleanupItem] {
+        ordering.items(items.filter { search.isEmpty || $0.url.path.localizedCaseInsensitiveContains(search) })
     }
 
     var body: some View {
@@ -67,6 +73,17 @@ struct CleanupDetailSheet: View {
             }
             .padding(20)
             Divider()
+            HStack(spacing: 12) {
+                sortButton(.name)
+                Spacer()
+                sortButton(.size).frame(width: 90, alignment: .trailing)
+                Color.clear.frame(width: 16, height: 1)
+            }
+            .font(.caption.weight(.medium))
+            .padding(.leading, isGrouped ? 96 : 82).padding(.trailing, 20).padding(.vertical, 9)
+            .fixedSize(horizontal: false, vertical: true)
+            .background(Color.subtleBackground)
+            Divider()
             ScrollView {
                 LazyVStack(spacing: 0) {
                     if isGrouped {
@@ -75,7 +92,7 @@ struct CleanupDetailSheet: View {
                             Divider().padding(.leading, 72)
                         }
                     } else {
-                        ForEach(items.filter { search.isEmpty || $0.url.path.localizedCaseInsensitiveContains(search) }) { item in
+                        ForEach(displayedItems) { item in
                             itemRow(item)
                             Divider().padding(.leading, 56)
                         }
@@ -136,7 +153,7 @@ struct CleanupDetailSheet: View {
             }
             .padding(.horizontal, 20).frame(minHeight: 72)
             if expanded {
-                ForEach(group.items) { item in
+                ForEach(ordering.items(group.items)) { item in
                     itemRow(item, nested: true)
                 }
             }
@@ -169,6 +186,24 @@ struct CleanupDetailSheet: View {
         }
         .padding(.leading, nested ? 72 : 20).padding(.trailing, 20).frame(minHeight: 58)
         .background(nested ? Color.subtleBackground : Color.clear)
+    }
+
+    private func sortButton(_ field: CleanupDetailSort) -> some View {
+        Button { ordering.select(field) } label: {
+            HStack(spacing: 5) {
+                Text(field.title)
+                Image(systemName: ordering.field == field ? (ordering.ascending ? "chevron.up" : "chevron.down") : "arrow.up.arrow.down")
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(ordering.field == field ? Color.primary : Color.secondary)
+        .help(field == .size ? "Sort by size" : "Sort by name")
+        .accessibilityLabel(field == .size ? "Sort by size" : "Sort by name")
+        .accessibilityValue(ordering.field == field
+                            ? (ordering.ascending ? String(localized: "Ascending") : String(localized: "Descending"))
+                            : String(localized: "Not sorted"))
     }
 
     private func cacheTitle(_ url: URL) -> String {

@@ -21,6 +21,9 @@ final class MemoryOptimizer: ObservableObject {
         isOptimizing = true
         message = nil
         report = nil
+        defer {
+            DiagnosticLogger.shared.record(.memoryOptimization, outcome: report == nil ? .failure : .success, errorFamily: report == nil ? .helper : nil)
+        }
 
         let before = await Task.detached(priority: .utility) {
             (memory: SystemMonitor.memoryBreakdown(),

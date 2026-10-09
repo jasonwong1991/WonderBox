@@ -88,6 +88,10 @@ struct DiskAnalyzerView: View {
         }
         .padding(28)
         .frame(maxWidth: 1_180, maxHeight: .infinity, alignment: .topLeading)
+        .sectionRefresh(.storage, busy: isScanning || isRemoving) {
+            requestScan()
+            await browser.waitForScan()
+        }
         .task {
             model.refreshFullDiskAccessStatus()
             if !isScopeActive, let scopedRoot { isScopeActive = scopedRoot.startAccessingSecurityScopedResource() }

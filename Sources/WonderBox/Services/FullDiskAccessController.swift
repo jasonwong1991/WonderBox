@@ -51,4 +51,10 @@ enum FullDiskAccessController {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles") else { return }
         NSWorkspace.shared.open(url)
     }
+
+    @MainActor
+    static func openAppManagementSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AppBundles") else { return }
+        NSWorkspace.shared.open(url)
+    }
 }

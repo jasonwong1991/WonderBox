@@ -34,13 +34,11 @@ private struct ProcessorContent: View {
             VStack(alignment: .leading, spacing: 22) {
                 PageHeader(title: kind.title, subtitle: String(localized: "Live application usage, including helper processes"))
 
-                MetricCard(title: kind.title,
+                ProcessorHistoryCard(kind: kind,
                            value: kind == .cpu ? AppFormatters.percent(model.snapshot.cpuUsage)
                                : model.snapshot.gpuUsage.map(AppFormatters.percent) ?? "—",
                            detail: kind == .cpu ? model.systemInfo.processorName : model.systemInfo.graphicsName,
-                           symbol: kind == .cpu ? "cpu" : "cube.transparent",
-                           tint: kind == .cpu ? AppSection.cpu.tint : AppSection.gpu.tint,
-                           history: kind == .cpu ? model.cpuHistory : model.gpuHistory)
+                           history: model.processorHistory)
 
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
@@ -86,6 +84,10 @@ private struct ProcessorContent: View {
             .frame(maxWidth: 1_050, alignment: .leading)
         }
         .task { await monitor.prime() }
+        .sectionRefresh(kind == .cpu ? .cpu : .gpu, busy: model.isRefreshingMetrics || monitor.isRefreshing) {
+            await model.refreshMetrics()
+            await monitor.prime()
+        }
         .confirmationDialog("Force quit this application?", isPresented: $showForceQuitConfirmation, titleVisibility: .visible) {
             if let target = forceQuitTarget {
                 Button("Force Quit", role: .destructive) { Task { await monitor.quit(target, force: true) } }

@@ -103,6 +103,7 @@ struct OverviewView: View {
             .padding(28)
             .frame(maxWidth: 1_160, alignment: .leading)
         }
+        .sectionRefresh(.overview, busy: model.isRefreshingMetrics) { await model.refreshMetrics() }
     }
 
     private var healthBanner: some View {

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.wondercraft.WonderBox.FanHelper</string>
+    <key>CFBundleName</key>
+    <string>WonderBox Background Service</string>
+    <key>CFBundleDisplayName</key>
+    <string>WonderBox Background Service</string>
+    <key>CFBundleExecutable</key>
+    <string>WonderFanHelper</string>
+    <key>CFBundleVersion</key>
+    <string>6</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+</dict>
+</plist>

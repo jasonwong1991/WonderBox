@@ -4,6 +4,10 @@
 <dict>
     <key>Label</key>
     <string>com.wondercraft.WonderBox.FanHelper</string>
+    <key>AssociatedBundleIdentifiers</key>
+    <array>
+        <string>com.wondercraft.WonderBox</string>
+    </array>
     <key>ProgramArguments</key>
     <array>
         <string>/Library/PrivilegedHelperTools/com.wondercraft.WonderBox.FanHelper</string>

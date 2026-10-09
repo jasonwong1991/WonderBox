@@ -74,6 +74,14 @@ final class DockPresenceController: NSObject, NSApplicationDelegate, ObservableO
             }
         ]
         windowDidAppear()
+        // An older layout bug could persist a window taller than the display. Repair only an
+        // oversized restored frame, after SwiftUI has installed the new content's size constraints.
+        DispatchQueue.main.async { [weak window] in
+            guard let window, !window.isMiniaturized, !window.styleMask.contains(.fullScreen),
+                  let screen = window.screen else { return }
+            let repaired = MainWindowFrameRecovery.frame(window.frame, fitting: screen.visibleFrame)
+            if repaired != window.frame { window.setFrame(repaired, display: true) }
+        }
     }
 
     /// Safety net for reopen paths that bypass `willShowMainWindow()` and LaunchServices (which restores the
@@ -113,6 +121,18 @@ final class DockPresenceController: NSObject, NSApplicationDelegate, ObservableO
         } else {
             NSApp.terminate(nil)
         }
+    }
+}
+
+enum MainWindowFrameRecovery {
+    static func frame(_ frame: NSRect, fitting visible: NSRect) -> NSRect {
+        guard visible.width > 0, visible.height > 0,
+              frame.width > visible.width || frame.height > visible.height else { return frame }
+        let width = min(frame.width, visible.width)
+        let height = min(frame.height, visible.height)
+        return NSRect(x: min(max(frame.minX, visible.minX), visible.maxX - width),
+                      y: min(max(frame.maxY - height, visible.minY), visible.maxY - height),
+                      width: width, height: height)
     }
 }
 

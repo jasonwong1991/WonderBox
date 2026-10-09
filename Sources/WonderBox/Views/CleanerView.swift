@@ -61,6 +61,7 @@ struct CleanerView: View {
             guard model.cleanupCategories.allSatisfy({ $0.itemCount == 0 }) else { return }
             Task { await model.scanStorage() }
         }
+        .sectionRefresh(.cleaner, busy: model.isScanningStorage || isCleaning || model.isQuickCleaning) { await model.scanStorage() }
         .confirmationDialog(
             "Clean the selected items?",
             isPresented: $showConfirmation,

@@ -105,10 +105,12 @@ struct FanView: View {
             .frame(maxWidth: 1_050, alignment: .leading)
         }
         .onAppear {
+            // Refreshing only samples sensors; it never reapplies the selected fan mode.
             if let first = model.fans.first {
                 customRPM = min(rpmRange.upperBound, max(rpmRange.lowerBound, first.currentRPM))
             }
         }
+        .sectionRefresh(.fan, busy: model.isRefreshingFans || isApplying) { await model.refreshFans() }
         .task {
             await model.refreshFans()
             if let first = model.fans.first {

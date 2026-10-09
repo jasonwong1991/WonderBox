@@ -5,6 +5,7 @@ struct AwakeView: View {
 
     var body: some View {
         AwakeContent(preventer: model.sleepPreventer)
+            .sectionRefresh(.awake) { model.sleepPreventer.refreshStatus() }
     }
 }
 
