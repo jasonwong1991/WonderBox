@@ -117,17 +117,50 @@ enum ApplicationScanner {
             installedAt: FileSystemScanner.indexedDate("kMDItemDateAdded", of: url)
                 ?? values?.creationDate
                 ?? values?.contentModificationDate,
-            lastUsedAt: FileSystemScanner.indexedDate("kMDItemLastUsedDate", of: url)
+            lastUsedAt: FileSystemScanner.indexedDate("kMDItemLastUsedDate", of: url),
+            relatedNames: [bundle?.infoDictionary?["CFBundleName"] as? String,
+                           bundle?.infoDictionary?["CFBundleDisplayName"] as? String,
+                           bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String,
+                           bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String].compactMap { $0 }
         )
     }
 
-    static func relatedFileScan(for application: InstalledApplication) -> RelatedFileScan {
-        RelatedFileScanner.scan(
+    enum RelatedScanMode { case discovery, quick }
+
+    static func relatedFileScan(for application: InstalledApplication, cache suppliedCache: RelatedFileScanCache? = nil,
+                                mode: RelatedScanMode = .quick) -> RelatedFileScan {
+        let cache = suppliedCache ?? RelatedFileScanCache()
+        var application = application
+        if FilePresence.check(application.url) == .present {
+            var fresh = cache.identity(application.url)
+            // A partial metadata read must not discard identities already found in this session.
+            if !fresh.isComplete, let previous = application.relatedIdentity {
+                fresh.componentIdentifiers = Array(Set(fresh.componentIdentifiers + previous.componentIdentifiers)).sorted()
+                fresh.applicationGroups = Array(Set(fresh.applicationGroups + previous.applicationGroups)).sorted()
+                fresh.declaredHelperIdentifiers = Array(Set(fresh.declaredHelperIdentifiers + previous.declaredHelperIdentifiers)).sorted()
+                fresh.dataNames = Array(Set(fresh.dataNames + previous.dataNames)).sorted()
+                fresh.legacyDataNames = Array(Set(fresh.legacyDataNames + previous.legacyDataNames)).sorted()
+            }
+            application.relatedIdentity = fresh
+        }
+        var result = RelatedFileScanner.scan(
             for: application,
             home: FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL,
             systemLibrary: URL(fileURLWithPath: "/Library", isDirectory: true),
-            temporaryDirectories: [_CS_DARWIN_USER_CACHE_DIR, _CS_DARWIN_USER_TEMP_DIR].compactMap(darwinUserDirectory)
+            temporaryDirectories: [_CS_DARWIN_USER_CACHE_DIR, _CS_DARWIN_USER_TEMP_DIR].compactMap(darwinUserDirectory),
+            list: cache.children,
+            containerIdentifier: cache.containerIdentifier,
+            launchMetadata: cache.metadata,
+            bundleMetadata: cache.metadata,
+            inspectContents: false,
+            measure: { cache.cachedMeasurement($0) ?? ApplicationDataSize.shallow($0) }
         )
+        if mode == .quick, !Task.isCancelled {
+            let measured = RelatedFileSizeScanner.measure(result.files, policy: .quick, cache: cache)
+            result.files = measured.files
+            result.inaccessibleLocations = Array(Set(result.inaccessibleLocations + measured.inaccessibleLocations))
+        }
+        return result
     }
 
     static func relatedFiles(for application: InstalledApplication) -> [RelatedFile] {
@@ -243,7 +276,7 @@ enum ApplicationOrganizer {
         case .all:
             return applications
         case .large:
-            return applications.filter { $0.size >= largeApplicationThreshold }
+            return applications.filter { $0.totalSize >= largeApplicationThreshold }
         case .stale:
             let cutoff = now.addingTimeInterval(-staleApplicationAge)
             return applications.filter { application in
@@ -264,10 +297,10 @@ enum ApplicationOrganizer {
                 let comparison = lhs.name.localizedStandardCompare(rhs.name)
                 return ascending ? comparison == .orderedAscending : comparison == .orderedDescending
             case .size:
-                if lhs.size != rhs.size {
-                    if lhs.size == 0 { return false }
-                    if rhs.size == 0 { return true }
-                    return ascending ? lhs.size < rhs.size : lhs.size > rhs.size
+                if lhs.totalSize != rhs.totalSize {
+                    if lhs.totalSize == 0 { return false }
+                    if rhs.totalSize == 0 { return true }
+                    return ascending ? lhs.totalSize < rhs.totalSize : lhs.totalSize > rhs.totalSize
                 }
             case .installedAt:
                 if let result = compare(lhs.installedAt, rhs.installedAt, ascending: ascending) { return result }

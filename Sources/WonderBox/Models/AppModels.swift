@@ -158,6 +158,14 @@ struct InstalledApplication: Identifiable, Equatable, Sendable {
     let size: UInt64
     let installedAt: Date?
     let lastUsedAt: Date?
+    var relatedNames: [String] = []
+    var relatedIdentity: ApplicationRelatedIdentity? = nil
+    var storageUsage: ApplicationStorageUsage? = nil
+
+    var totalSize: UInt64 { ApplicationStorageUsage.add(size, storageUsage?.relatedSize ?? 0) }
+    var totalSizeText: String {
+        (storageUsage?.isComplete == true ? "" : "≥ ") + AppFormatters.bytes(totalSize)
+    }
 }
 
 enum ApplicationSort: String, CaseIterable, Identifiable, Sendable {
@@ -171,7 +179,7 @@ enum ApplicationSort: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .name: String(localized: "Name")
-        case .size: String(localized: "Size")
+        case .size: String(localized: "Total Usage")
         case .installedAt: String(localized: "Install Date")
         case .lastUsedAt: String(localized: "Last Used")
         }
@@ -205,7 +213,7 @@ enum ApplicationFilter: String, CaseIterable, Identifiable, Sendable {
     var detail: String {
         switch self {
         case .all: String(localized: "Show all applications")
-        case .large: String(localized: "Show applications of 1 GB or more")
+        case .large: String(localized: "Show applications using 1 GB or more, including related data")
         case .stale: String(localized: "Show applications unused for 180 days or with no usage record")
         }
     }
@@ -217,6 +225,40 @@ struct RelatedFile: Identifiable, Equatable, Sendable {
     let displayPath: String
     let size: UInt64
     var isSelected = true
+    var isSizeComplete = true
+    var hasMeasuredSize = true
+    var association: RelatedFileAssociation = .standard
+
+    var sizeText: String {
+        hasMeasuredSize ? (isSizeComplete ? "" : "≥ ") + AppFormatters.bytes(size) : String(localized: "Not measured")
+    }
+}
+
+enum RelatedFileAssociation: Equatable, Sendable {
+    case standard, embeddedComponent, applicationGroup, vendorSubfolder, declaredHelper, launchItem, legacyData
+    case autosaveData, crossPlatformData, externalPlugin
+
+    var requiresReview: Bool {
+        switch self {
+        case .embeddedComponent, .applicationGroup, .vendorSubfolder, .declaredHelper, .legacyData, .autosaveData, .crossPlatformData, .externalPlugin: true
+        default: false
+        }
+    }
+
+    var detail: String? {
+        switch self {
+        case .standard: nil
+        case .embeddedComponent: String(localized: "Embedded component · May be shared")
+        case .applicationGroup: String(localized: "Shared app-group data · Review before removal")
+        case .vendorSubfolder: String(localized: "Vendor subfolder · Review before removal")
+        case .declaredHelper: String(localized: "Declared helper · May be shared")
+        case .launchItem: String(localized: "Startup item points to this app")
+        case .legacyData: String(localized: "Legacy migration data · Review before removal")
+        case .autosaveData: String(localized: "Autosave data · May contain unsaved documents")
+        case .crossPlatformData: String(localized: "Cross-platform data · May be shared with command-line tools")
+        case .externalPlugin: String(localized: "Plugin bundle identifier matches · Review before removal")
+        }
+    }
 }
 
 enum CleanupKind: String, CaseIterable, Identifiable, Sendable {

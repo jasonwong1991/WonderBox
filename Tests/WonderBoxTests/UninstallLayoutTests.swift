@@ -16,7 +16,9 @@ final class UninstallLayoutTests: XCTestCase {
                                        version: nil, size: 2_000_000, installedAt: nil, lastUsedAt: nil)
         for language in ["en", "zh-Hans"] {
             for size in [NSSize(width: 980, height: 660), NSSize(width: 1_180, height: 760)] {
-                let model = AppModel(applications: [app])
+                let model = AppModel(applications: [app], applicationStorageLoader: { apps in
+                    ApplicationStorageScanner.updates(apps, scan: { _ in RelatedFileScan(files: [], inaccessibleLocations: []) })
+                })
                 model.selection = .applications
                 model.selectedApplication = app
                 _ = model.shouldOfferFullDiskAccess(suppressed: true)

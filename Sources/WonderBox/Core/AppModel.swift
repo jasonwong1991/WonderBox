@@ -17,8 +17,13 @@ final class AppModel: ObservableObject {
     @Published private(set) var hasReadFans = false
     @Published private(set) var fanMessage: String?
     @Published private(set) var isMonitoring = false
-    @Published private(set) var applications: [InstalledApplication] = []
+    @Published private(set) var applications: [InstalledApplication] = [] {
+        didSet { applicationPresentationVersion &+= 1 }
+    }
     @Published private(set) var isScanningApplications = false
+    @Published private(set) var isMeasuringApplicationSizes = false
+    @Published private(set) var measuredApplicationCount = 0
+    @Published private(set) var applicationMeasurementCount = 0
     @Published var applicationSearch = ""
     @Published var applicationSort: ApplicationSort = .name {
         didSet {
@@ -31,6 +36,7 @@ final class AppModel: ObservableObject {
     @Published var selectedApplication: InstalledApplication?
     @Published private(set) var relatedFiles: [RelatedFile] = []
     @Published private(set) var isScanningRelatedFiles = false
+    @Published private(set) var isMeasuringRelatedSizes = false
     @Published private(set) var relatedFileScanMessage: String?
     @Published private(set) var isUninstallingApplication = false
     @Published var cleanupScanMode: CleanupScanMode = .standard
@@ -66,6 +72,25 @@ final class AppModel: ObservableObject {
     private var metricsRefreshTask: Task<Void, Never>?
     private var previousCounters: SystemCounters?
     private var relatedFileScanID = UUID()
+    private var applicationSizeTask: Task<Void, Never>?
+    private var applicationSizeScanID = UUID()
+    private var applicationInventoryScanID = UUID()
+    private var applicationInventoryWorker: Task<[InstalledApplication], Never>?
+    private var applicationWorkEnabled = true
+    private var needsApplicationInventoryRefresh = false
+    private var foregroundSizeOverrides = Set<URL>()
+    private let relatedScanCache: RelatedFileScanCache
+    private var relatedFileWorker: Task<RelatedFileScan, Never>?
+    private var relatedSizeWorker: Task<RelatedFileScan, Never>?
+    private var relatedSizeTask: Task<Void, Never>?
+    private var relatedSizeScanID = UUID()
+    private var relatedDiscoveryScan: RelatedFileScan?
+    private var applicationPresentationVersion = 0
+    private var cachedApplicationPresentation: ApplicationPresentation?
+    private let applicationStorageLoader: @Sendable ([InstalledApplication]) -> AsyncStream<ApplicationStorageUpdate>
+    private let applicationInventoryLoader: @Sendable () -> [InstalledApplication]
+    private let relatedFileLoader: @Sendable (InstalledApplication) -> RelatedFileScan
+    private let relatedSizeLoader: @Sendable ([RelatedFile], ApplicationSizePolicy) -> RelatedFileScan
     private var didOfferFullDiskAccess = false
     private var didStartServices = false
 
@@ -73,8 +98,18 @@ final class AppModel: ObservableObject {
         FullDiskAccessController.isSupported
     }
 
-    init(applications: [InstalledApplication] = []) {
+    init(applications: [InstalledApplication] = [],
+         applicationInventoryLoader: @escaping @Sendable () -> [InstalledApplication] = { ApplicationScanner.scanApplications() },
+         applicationStorageLoader: (@Sendable ([InstalledApplication]) -> AsyncStream<ApplicationStorageUpdate>)? = nil,
+         relatedFileLoader: (@Sendable (InstalledApplication) -> RelatedFileScan)? = nil,
+         relatedSizeLoader: (@Sendable ([RelatedFile], ApplicationSizePolicy) -> RelatedFileScan)? = nil) {
+        let cache = RelatedFileScanCache()
+        self.relatedScanCache = cache
         self.applications = applications
+        self.applicationInventoryLoader = applicationInventoryLoader
+        self.applicationStorageLoader = applicationStorageLoader ?? { ApplicationStorageScanner.updates($0, cache: cache) }
+        self.relatedFileLoader = relatedFileLoader ?? { ApplicationScanner.relatedFileScan(for: $0, cache: cache, mode: .discovery) }
+        self.relatedSizeLoader = relatedSizeLoader ?? { RelatedFileSizeScanner.measure($0, policy: $1, cache: cache) }
         guard let flagIndex = CommandLine.arguments.firstIndex(of: "--section"),
               CommandLine.arguments.indices.contains(flagIndex + 1),
               let requested = AppSection(rawValue: CommandLine.arguments[flagIndex + 1])
@@ -82,7 +117,17 @@ final class AppModel: ObservableObject {
         selection = requested
     }
 
-    var filteredApplications: [InstalledApplication] {
+    private struct ApplicationPresentation {
+        let version: Int, search: String, sort: ApplicationSort, ascending: Bool, filter: ApplicationFilter
+        let applications: [InstalledApplication]
+        let total: UInt64
+        let isComplete: Bool
+    }
+
+    private func applicationPresentation() -> ApplicationPresentation {
+        if let cached = cachedApplicationPresentation, cached.version == applicationPresentationVersion,
+           cached.search == applicationSearch, cached.sort == applicationSort,
+           cached.ascending == applicationSortAscending, cached.filter == applicationFilter { return cached }
         let searched: [InstalledApplication]
         if applicationSearch.isEmpty {
             searched = applications
@@ -93,11 +138,23 @@ final class AppModel: ObservableObject {
             }
         }
         let filtered = ApplicationOrganizer.filter(searched, by: applicationFilter)
-        return ApplicationOrganizer.sort(filtered, by: applicationSort, ascending: applicationSortAscending)
+        let sorted = ApplicationOrganizer.sort(filtered, by: applicationSort, ascending: applicationSortAscending)
+        let value = ApplicationPresentation(version: applicationPresentationVersion, search: applicationSearch, sort: applicationSort,
+                                            ascending: applicationSortAscending, filter: applicationFilter, applications: sorted,
+                                            total: ApplicationStorageUsage.combinedSize(sorted),
+                                            isComplete: sorted.allSatisfy { $0.storageUsage?.isComplete == true })
+        cachedApplicationPresentation = value
+        return value
     }
 
+    var filteredApplications: [InstalledApplication] { applicationPresentation().applications }
+
     var filteredApplicationSize: UInt64 {
-        filteredApplications.reduce(0) { $0 + $1.size }
+        applicationPresentation().total
+    }
+
+    var filteredApplicationSizeIsComplete: Bool {
+        applicationPresentation().isComplete
     }
 
     var selectedCleanupSize: UInt64 {
@@ -232,15 +289,152 @@ final class AppModel: ObservableObject {
     }
 
     func scanApplications() async {
-        guard !isScanningApplications else { return }
+        guard !isScanningApplications, applicationWorkEnabled else { return }
+        cancelApplicationWork()
         isScanningApplications = true
+        let id = UUID(); applicationInventoryScanID = id
+        relatedScanCache.clear()
         let started = Date()
         operationMessage = nil
-        applications = await Task.detached(priority: .utility) {
-            ApplicationScanner.scanApplications()
-        }.value
+        let loader = applicationInventoryLoader
+        let worker = Task.detached(priority: .utility) { loader() }
+        applicationInventoryWorker = worker
+        let result = await worker.value
+        guard applicationInventoryScanID == id, applicationWorkEnabled else { return }
+        applicationInventoryWorker = nil
+        applications = result
+        needsApplicationInventoryRefresh = false
         isScanningApplications = false
+        measureApplicationSizes()
         DiagnosticLogger.shared.record(.applicationScanFinished, metrics: [.count: Int64(applications.count), .durationMS: Int64(Date().timeIntervalSince(started) * 1_000)])
+    }
+
+    func measureApplicationSizes() {
+        guard applicationWorkEnabled, !isMeasuringApplicationSizes, !isUninstallingApplication, !isMeasuringRelatedSizes, !isScanningRelatedFiles else { return }
+        let pending = applications.filter { $0.storageUsage == nil }
+        guard !pending.isEmpty else { return }
+        let id = UUID()
+        applicationSizeScanID = id
+        foregroundSizeOverrides.removeAll()
+        measuredApplicationCount = 0
+        applicationMeasurementCount = pending.count
+        isMeasuringApplicationSizes = true
+        let stream = applicationStorageLoader(pending)
+        applicationSizeTask = Task { [weak self] in
+            var batch: [ApplicationStorageUpdate] = []
+            var lastPublished = ProcessInfo.processInfo.systemUptime
+            for await update in stream {
+                guard let self, !Task.isCancelled, self.applicationSizeScanID == id else { return }
+                batch.append(update)
+                if batch.count >= 16 || ProcessInfo.processInfo.systemUptime - lastPublished >= 0.25 {
+                    self.applyStorageUpdates(batch)
+                    self.measuredApplicationCount += batch.count
+                    batch.removeAll(keepingCapacity: true)
+                    lastPublished = ProcessInfo.processInfo.systemUptime
+                }
+            }
+            guard let self, self.applicationSizeScanID == id else { return }
+            if !batch.isEmpty { self.applyStorageUpdates(batch); self.measuredApplicationCount += batch.count }
+            self.isMeasuringApplicationSizes = false
+            self.applicationSizeTask = nil
+        }
+    }
+
+    func cancelApplicationSizeScan() {
+        applicationSizeScanID = UUID()
+        applicationSizeTask?.cancel()
+        applicationSizeTask = nil
+        isMeasuringApplicationSizes = false
+    }
+
+    func waitForApplicationSizes() async { await applicationSizeTask?.value }
+
+    private func applyStorageUpdates(_ updates: [ApplicationStorageUpdate]) {
+        let values = Dictionary(updates.filter { !foregroundSizeOverrides.contains($0.id) }.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        guard !values.isEmpty else { return }
+        applications = applications.map { app in
+            guard let update = values[app.id] else { return app }
+            var app = app; app.storageUsage = update.usage
+            if let identity = update.identity { app.relatedIdentity = identity }
+            return app
+        }
+    }
+
+    func cancelRelatedSizeCalculation() {
+        relatedSizeScanID = UUID()
+        relatedSizeWorker?.cancel(); relatedSizeTask?.cancel()
+        relatedSizeWorker = nil; relatedSizeTask = nil; isMeasuringRelatedSizes = false
+    }
+
+    func cancelApplicationWork() {
+        applicationInventoryScanID = UUID()
+        applicationInventoryWorker?.cancel(); applicationInventoryWorker = nil; isScanningApplications = false
+        cancelApplicationSizeScan()
+        cancelRelatedSizeCalculation()
+        relatedFileScanID = UUID()
+        relatedFileWorker?.cancel(); relatedFileWorker = nil; isScanningRelatedFiles = false
+    }
+
+    func beginApplicationWork() {
+        applicationWorkEnabled = true
+        guard !isUninstallingApplication else { return }
+        if applications.isEmpty || needsApplicationInventoryRefresh { Task { await scanApplications() } }
+        else { resumeApplicationMeasurement() }
+    }
+
+    func suspendApplicationWork() {
+        applicationWorkEnabled = false
+        cancelApplicationWork()
+    }
+
+    func resumeApplicationMeasurement() {
+        if selectedApplication != nil, relatedFiles.contains(where: { !$0.isSizeComplete }) {
+            measureSelectedRelatedSizes(policy: .quick)
+        } else { measureApplicationSizes() }
+    }
+
+    func measureSelectedRelatedSizes(policy: ApplicationSizePolicy = .full) {
+        guard applicationWorkEnabled, let application = selectedApplication, !isScanningRelatedFiles, !isUninstallingApplication,
+              !isMeasuringRelatedSizes, !relatedFiles.isEmpty else { return }
+        cancelApplicationSizeScan()
+        let scanID = UUID(); relatedSizeScanID = scanID
+        let files = relatedFiles, loader = relatedSizeLoader
+        isMeasuringRelatedSizes = true
+        let worker = Task.detached(priority: .utility) { loader(files, policy) }
+        relatedSizeWorker = worker
+        relatedSizeTask = Task { [weak self] in
+            let result = await worker.value
+            guard let self, !Task.isCancelled, self.relatedSizeScanID == scanID, self.selectedApplication?.id == application.id else { return }
+            let sizes = Dictionary(result.files.map { ($0.url.standardizedFileURL.path, $0) }, uniquingKeysWith: { _, last in last })
+            // Only update size fields. Checkbox edits made while scanning stay untouched.
+            self.relatedFiles = self.relatedFiles.map { file in
+                guard let size = sizes[file.url.standardizedFileURL.path] else { return file }
+                var value = size; value.isSelected = file.isSelected; value.association = file.association
+                return value
+            }
+            var scan = self.relatedDiscoveryScan ?? result
+            scan.files = self.relatedFiles
+            scan.inaccessibleLocations = Array(Set(scan.inaccessibleLocations + result.inaccessibleLocations))
+            self.relatedFileScanMessage = scan.accessMessage
+            self.applyStorageUsage(ApplicationStorageUsage(files: self.relatedFiles, isComplete: scan.accessMessage == nil), to: application.id, foreground: true)
+            self.isMeasuringRelatedSizes = false; self.relatedSizeWorker = nil; self.relatedSizeTask = nil
+            self.measureApplicationSizes()
+        }
+    }
+
+    func waitForRelatedSizes() async { await relatedSizeTask?.value }
+
+    private func applyStorageUsage(_ usage: ApplicationStorageUsage, to id: URL, foreground: Bool = false, identity: ApplicationRelatedIdentity? = nil) {
+        if foreground { foregroundSizeOverrides.insert(id) }
+        if let index = applications.firstIndex(where: { $0.id == id }) {
+            applications[index].storageUsage = usage
+            if let identity { applications[index].relatedIdentity = identity }
+        }
+        if var selected = selectedApplication, selected.id == id {
+            selected.storageUsage = usage
+            if let identity { selected.relatedIdentity = identity }
+            selectedApplication = selected
+        }
     }
 
     func refreshApplicationInventory() async {
@@ -257,6 +451,7 @@ final class AppModel: ObservableObject {
 
     func selectApplication(_ application: InstalledApplication?) async {
         guard !isUninstallingApplication else { return }
+        cancelApplicationWork()
         let scanID = UUID()
         relatedFileScanID = scanID
         selectedApplication = application
@@ -267,15 +462,23 @@ final class AppModel: ObservableObject {
             return
         }
         isScanningRelatedFiles = true
-        let result = await Task.detached(priority: .utility) {
-            ApplicationScanner.relatedFileScan(for: application)
-        }.value
+        let loader = relatedFileLoader
+        let worker = Task.detached(priority: .userInitiated) {
+            loader(application)
+        }
+        relatedFileWorker = worker
+        let result = await worker.value
         guard relatedFileScanID == scanID else { return }
+        relatedFileWorker = nil
+        relatedDiscoveryScan = result
         relatedFiles = result.files
+        applyStorageUsage(ApplicationStorageUsage(files: result.files, isComplete: result.accessMessage == nil), to: application.id, foreground: true, identity: result.identity)
         relatedFileScanMessage = result.accessMessage
         isScanningRelatedFiles = false
-        DiagnosticLogger.shared.record(.relatedFileScanFinished, outcome: result.inaccessibleLocations.isEmpty ? .success : .partial,
+        DiagnosticLogger.shared.record(.relatedFileScanFinished, outcome: result.accessMessage == nil ? .success : .partial,
                                        metrics: [.count: Int64(result.files.count), .failed: Int64(result.inaccessibleLocations.count)])
+        if result.files.contains(where: { !$0.isSizeComplete }) { measureSelectedRelatedSizes(policy: .quick) }
+        else { measureApplicationSizes() }
     }
 
     func addApplication(at url: URL) async {
@@ -320,7 +523,10 @@ final class AppModel: ObservableObject {
             return
         }
         isUninstallingApplication = true
-        defer { isUninstallingApplication = false }
+        needsApplicationInventoryRefresh = true
+        cancelApplicationWork()
+        relatedScanCache.clear()
+        defer { isUninstallingApplication = false; resumeApplicationMeasurement() }
         relatedFileScanID = UUID()
         let previousRelated = relatedFiles
         let selectedRelated = relatedFiles.filter(\.isSelected)
@@ -338,7 +544,7 @@ final class AppModel: ObservableObject {
         }
         // Keep the bundle identity even if its original URL has moved, so failures are retryable.
         let verification = await Task.detached(priority: .utility) {
-            let scan = ApplicationScanner.relatedFileScan(for: selectedApplication)
+            let scan = ApplicationScanner.relatedFileScan(for: selectedApplication, mode: .discovery)
             return (scan, RelatedFileScanner.remainingFiles(previous: previousRelated, scanned: scan.files),
                     ApplicationScanner.needsBundleRemoval(selectedApplication.url))
         }.value
@@ -349,10 +555,14 @@ final class AppModel: ObservableObject {
                                        metrics: [.count: Int64(removed), .failed: Int64(failed)])
         self.selectedApplication = failed > 0 || !verification.1.isEmpty || incomplete ? selectedApplication : nil
         relatedFiles = verification.1
+        relatedDiscoveryScan = verification.0
         relatedFileScanMessage = verification.0.accessMessage
         isScanningRelatedFiles = false
         // The rescan clears the previous message; report this result afterwards so it stays visible.
         await scanApplications()
+        if let selected = self.selectedApplication {
+            applyStorageUsage(ApplicationStorageUsage(files: verification.1, isComplete: !incomplete), to: selected.id, foreground: true)
+        }
         var messages = [String(localized: "Moved \(removed) items to the Trash")]
         if failed > 0 { messages.append(String(localized: "\(failed) selected items remain.")) }
         if let removalMessage { messages.append(removalMessage) }

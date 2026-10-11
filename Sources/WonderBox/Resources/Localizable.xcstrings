@@ -118,6 +118,17 @@
             "value": "%lld 个 · %@"
           }
         }
+      },
+      "extractionState": "stale"
+    },
+    "%lld apps · %@%@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个应用 · %@%@"
+          }
+        }
       }
     },
     "%lld cache locations · %lld selected": {
@@ -180,6 +191,16 @@
         }
       }
     },
+    "%lld items will be kept": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将保留 %lld 个项目"
+          }
+        }
+      }
+    },
     "%lld items · %@": {
       "localizations": {
         "zh-Hans": {
@@ -216,6 +237,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld 个进程"
+          }
+        }
+      }
+    },
+    "%lld related items are not selected (%@) and will be kept.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有 %lld 个关联项目未勾选（%@），将保留在原处。"
           }
         }
       }
@@ -482,7 +513,8 @@
             "value": "应用大小"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "App Store core features": {
       "localizations": {
@@ -510,6 +542,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "应用残留、备份、下载文件和聊天应用缓存移入废纸篓；其他缓存删除后按需重建。"
+          }
+        }
+      }
+    },
+    "App: %@ · Related data: %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本体：%@ · 关联数据：%@"
           }
         }
       }
@@ -757,6 +799,26 @@
         }
       }
     },
+    "Autosave Data": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动保存数据"
+          }
+        }
+      }
+    },
+    "Autosave data · May contain unsaved documents": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动保存数据 · 可能包含未保存的文档"
+          }
+        }
+      }
+    },
     "Available": {
       "localizations": {
         "zh-Hans": {
@@ -944,6 +1006,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "缓存"
+          }
+        }
+      }
+    },
+    "Calculate Full Sizes": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "计算完整大小"
           }
         }
       }
@@ -1361,6 +1433,16 @@
         }
       }
     },
+    "Cross-platform data · May be shared with command-line tools": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跨平台数据 · 可能与命令行工具共用"
+          }
+        }
+      }
+    },
     "Custom": {
       "localizations": {
         "zh-Hans": {
@@ -1387,6 +1469,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "已卸载应用遗留的数据"
+          }
+        }
+      }
+    },
+    "Declared helper · May be shared": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用声明的辅助程序 · 可能共用"
           }
         }
       }
@@ -1691,6 +1783,27 @@
           }
         }
       }
+    },
+    "Embedded component · May be shared": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内嵌组件 · 可能共用"
+          }
+        }
+      }
+    },
+    "Embedded helper or extension — may be shared; review before removal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内嵌辅助程序或扩展，可能共用，请确认后勾选"
+          }
+        }
+      },
+      "extractionState": "stale"
     },
     "Empty command": {
       "extractionState": "manual",
@@ -2106,6 +2219,17 @@
         }
       }
     },
+    "Helper declared by the app — may be shared; review before removal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用声明的辅助程序，可能共用，请确认后勾选"
+          }
+        }
+      },
+      "extractionState": "stale"
+    },
     "High Load": {
       "localizations": {
         "zh-Hans": {
@@ -2126,6 +2250,26 @@
         }
       },
       "extractionState": "stale"
+    },
+    "Includes all detected related data, regardless of which items are selected for removal.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包含所有已发现的关联数据，与移除时勾选哪些项目无关。"
+          }
+        }
+      }
+    },
+    "Includes app + detected data. ≥ means a partial total.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包含应用本体和已发现关联数据；≥ 表示统计尚不完整。"
+          }
+        }
+      }
     },
     "Indefinitely": {
       "localizations": {
@@ -2330,6 +2474,16 @@
         }
       }
     },
+    "Large folders use a bounded scan. Calculate full sizes in the detail.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大目录先有限统计，可在详情中计算完整大小。"
+          }
+        }
+      }
+    },
     "Last 60 seconds": {
       "localizations": {
         "zh-Hans": {
@@ -2386,6 +2540,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "残留、备份、下载文件、安装包和聊天应用缓存移入废纸篓；包管理器和浏览器缓存直接删除"
+          }
+        }
+      }
+    },
+    "Legacy migration data · Review before removal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "旧版迁移数据 · 请确认后勾选"
           }
         }
       }
@@ -2540,6 +2704,17 @@
         }
       }
     },
+    "Matching product folder inside a vendor folder — review before removal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "厂商目录中的同名产品文件夹，请确认后勾选"
+          }
+        }
+      },
+      "extractionState": "stale"
+    },
     "Measuring process memory…": {
       "localizations": {
         "zh-Hans": {
@@ -2556,6 +2731,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在测量进程占用…"
+          }
+        }
+      }
+    },
+    "Measuring related data… %lld/%lld": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在统计关联数据… %lld/%lld"
+          }
+        }
+      }
+    },
+    "Measuring…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "统计中…"
           }
         }
       }
@@ -2676,6 +2871,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "监测暂停"
+          }
+        }
+      }
+    },
+    "Move Selected Items to Trash": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅将已选项目移入废纸篓"
           }
         }
       }
@@ -2888,6 +3093,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "未检测到"
+          }
+        }
+      }
+    },
+    "Not measured": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待统计"
           }
         }
       }
@@ -3200,6 +3415,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "权限与构建"
+          }
+        }
+      }
+    },
+    "Plugin bundle identifier matches · Review before removal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "插件标识符匹配 · 移除前请确认"
+          }
+        }
+      }
+    },
+    "Plugins": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "插件"
           }
         }
       }
@@ -3648,6 +3883,16 @@
         }
       }
     },
+    "Review Selection": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返回检查"
+          }
+        }
+      }
+    },
     "Running Hot": {
       "localizations": {
         "zh-Hans": {
@@ -3831,6 +4076,27 @@
         }
       }
     },
+    "Shared app-group data · Review before removal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "共享应用组数据 · 请确认后勾选"
+          }
+        }
+      }
+    },
+    "Shared app-group data — review before removal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "共享应用组数据，请确认后勾选"
+          }
+        }
+      },
+      "extractionState": "stale"
+    },
     "Shared system caches; requires administrator authorization": {
       "localizations": {
         "zh-Hans": {
@@ -3901,7 +4167,8 @@
             "value": "显示 1 GB 及以上的应用"
           }
         }
-      }
+      },
+      "extractionState": "stale"
     },
     "Show applications unused for 180 days or with no usage record": {
       "localizations": {
@@ -3909,6 +4176,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "显示超过 180 天未使用或无使用记录的应用"
+          }
+        }
+      }
+    },
+    "Show applications using 1 GB or more, including related data": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示总占用至少 1 GB 的应用（含关联数据）"
           }
         }
       }
@@ -3963,6 +4240,28 @@
         }
       }
     },
+    "Sizes include detected related data. Large folders use a bounded scan; calculate full sizes in the detail. ≥ indicates a lower bound.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大小包含已发现的关联数据。大目录先有限统计，可在详情计算完整大小；≥ 表示至少占用。"
+          }
+        }
+      },
+      "extractionState": "stale"
+    },
+    "Sizes include the app and related data. ≥ indicates a partial or pending scan.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大小包含应用本体与关联数据；≥ 表示统计尚未完成或读取不完整。"
+          }
+        }
+      },
+      "extractionState": "stale"
+    },
     "Skipped %lld caches because the app is running": {
       "localizations": {
         "zh-Hans": {
@@ -3979,6 +4278,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "软件更新"
+          }
+        }
+      }
+    },
+    "Some application components could not be inspected. The related-file list may be incomplete.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分应用组件未完成检查，关联文件列表可能不完整。"
           }
         }
       }
@@ -4019,6 +4328,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "部分位置读取失败，关联文件列表可能不完整。请授予完全磁盘访问权限后重新扫描。"
+          }
+        }
+      }
+    },
+    "Some plugin locations exceeded the inspection limit. The related-file list may be incomplete.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分插件位置超出检查数量上限，关联文件列表可能不完整。"
           }
         }
       }
@@ -4123,6 +4442,16 @@
         }
       }
     },
+    "Startup item points to this app": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启动项指向此应用"
+          }
+        }
+      }
+    },
     "Status Unknown": {
       "localizations": {
         "zh-Hans": {
@@ -4159,6 +4488,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "停止保持唤醒 · %@"
+          }
+        }
+      }
+    },
+    "Stop Measuring": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止统计"
           }
         }
       }
@@ -4654,6 +4993,16 @@
         }
       }
     },
+    "Total Usage": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "总占用"
+          }
+        }
+      }
+    },
     "Trash": {
       "localizations": {
         "zh-Hans": {
@@ -4861,6 +5210,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "数值"
+          }
+        }
+      }
+    },
+    "Vendor subfolder · Review before removal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "厂商子目录 · 请确认后勾选"
           }
         }
       }

@@ -57,10 +57,8 @@ struct ApplicationsView: View {
         .sectionRefresh(.applications, busy: model.isScanningApplications || model.isScanningRelatedFiles || model.isUninstallingApplication) {
             await model.refreshApplicationInventory()
         }
-        .onAppear {
-            guard model.applications.isEmpty else { return }
-            Task { await model.scanApplications() }
-        }
+        .onAppear { model.beginApplicationWork() }
+        .onDisappear { model.suspendApplicationWork() }
     }
 
     private var applicationList: some View {
@@ -165,13 +163,21 @@ struct ApplicationsView: View {
 
             Divider()
 
+            if model.isMeasuringApplicationSizes {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.mini)
+                    Text("Measuring related data… \(model.measuredApplicationCount)/\(model.applicationMeasurementCount)")
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }.padding(.horizontal, 12).padding(.vertical, 6)
+            }
+
             HStack {
-                Text("\(model.filteredApplications.count) apps · \(AppFormatters.bytes(model.filteredApplicationSize))")
+                Text("\(model.filteredApplications.count) apps · \(model.filteredApplicationSizeIsComplete ? "" : "≥ ")\(AppFormatters.bytes(model.filteredApplicationSize))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button {
-                    Task { await model.scanApplications() }
+                    Task { await model.refreshApplicationInventory() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -180,6 +186,10 @@ struct ApplicationsView: View {
                 .disabled(model.isScanningApplications)
             }
             .padding(12)
+            Text("Includes app + detected data. ≥ means a partial total.")
+                .font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+                .help("Large folders use a bounded scan. Calculate full sizes in the detail.")
+                .padding(.horizontal, 12).padding(.bottom, 10)
         }
     }
 
@@ -263,23 +273,24 @@ private struct ApplicationRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(application.name), \(AppFormatters.bytes(application.size))")
+        .accessibilityLabel("\(application.name), \(application.totalSizeText)")
+        .help(String(localized: "App: \(AppFormatters.bytes(application.size)) · Related data: \(application.storageUsage.map { AppFormatters.bytes($0.relatedSize) } ?? String(localized: "Measuring…"))"))
     }
 
     private var secondaryText: String {
         switch sort {
         case .name:
-            return [application.version, AppFormatters.bytes(application.size)]
+            return [application.version, application.totalSizeText]
                 .compactMap { $0 }
                 .joined(separator: " · ")
         case .size:
-            return [AppFormatters.bytes(application.size), application.version]
+            return [application.totalSizeText, application.version]
                 .compactMap { $0 }
                 .joined(separator: " · ")
         case .installedAt:
-            return String(localized: "Installed \(application.installedAt.map(AppFormatters.compactDate.string) ?? String(localized: "Unknown")) · \(AppFormatters.bytes(application.size))")
+            return String(localized: "Installed \(application.installedAt.map(AppFormatters.compactDate.string) ?? String(localized: "Unknown")) · \(application.totalSizeText)")
         case .lastUsedAt:
-            return String(localized: "Used \(application.lastUsedAt.map(AppFormatters.compactDate.string) ?? String(localized: "No record")) · \(AppFormatters.bytes(application.size))")
+            return String(localized: "Used \(application.lastUsedAt.map(AppFormatters.compactDate.string) ?? String(localized: "No record")) · \(application.totalSizeText)")
         }
     }
 }
@@ -290,12 +301,23 @@ private struct ApplicationDetail: View {
     @State private var showConfirmation = false
     @State private var isRemoving = false
 
+    private var selectionSummary: RelatedFileSelectionSummary { RelatedFileSelectionSummary(files: model.relatedFiles) }
+
     private var selectedRelatedSize: UInt64 {
-        model.relatedFiles.filter(\.isSelected).reduce(0) { $0 + $1.size }
+        model.relatedFiles.filter(\.isSelected).reduce(0) { ApplicationStorageUsage.add($0, $1.size) }
     }
+    private var selectedSizePrefix: String { model.relatedFiles.filter(\.isSelected).allSatisfy(\.isSizeComplete) ? "" : "≥ " }
     private var removesBundle: Bool { ApplicationScanner.needsBundleRemoval(application.url) }
+    private var bundleSizeForTotal: UInt64 { FilePresence.check(application.url) == .missing ? 0 : application.size }
+    private var totalUsageText: String {
+        (application.storageUsage?.isComplete == true ? "" : "≥ ") + AppFormatters.bytes(ApplicationStorageUsage.add(bundleSizeForTotal, application.storageUsage?.relatedSize ?? 0))
+    }
+    private var breakdownText: String {
+        String(localized: "App: \(AppFormatters.bytes(bundleSizeForTotal)) · Related data: \(application.storageUsage.map { ($0.isComplete ? "" : "≥ ") + AppFormatters.bytes($0.relatedSize) } ?? String(localized: "Measuring…"))")
+    }
 
     var body: some View {
+        let summary = selectionSummary
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 16) {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: application.url.path))
@@ -341,7 +363,8 @@ private struct ApplicationDetail: View {
             .padding(.bottom, 14)
 
             HStack(spacing: 0) {
-                ApplicationMetadata(title: String(localized: "App Size"), value: AppFormatters.bytes(application.size))
+                ApplicationMetadata(title: String(localized: "Total Usage"), value: totalUsageText)
+                    .help("Includes all detected related data, regardless of which items are selected for removal.")
                 Divider().frame(height: 28)
                 ApplicationMetadata(
                     title: String(localized: "Install Date"),
@@ -354,7 +377,22 @@ private struct ApplicationDetail: View {
                 )
             }
             .padding(.horizontal, 22)
-            .padding(.bottom, 18)
+            .padding(.bottom, 8)
+            HStack(spacing: 8) {
+                Text(breakdownText).font(.caption).foregroundStyle(.secondary).lineLimit(1).help(breakdownText)
+                Spacer(minLength: 0)
+                if model.isMeasuringRelatedSizes {
+                    ProgressView().controlSize(.mini)
+                    Button("Stop Measuring") {
+                        model.cancelRelatedSizeCalculation()
+                        model.measureApplicationSizes()
+                    }.buttonStyle(.borderless).font(.caption)
+                } else if model.relatedFiles.contains(where: { !$0.isSizeComplete }) {
+                    Button("Calculate Full Sizes") { model.measureSelectedRelatedSizes() }
+                        .buttonStyle(.borderless).font(.caption)
+                        .disabled(model.isScanningRelatedFiles)
+                }
+            }.padding(.horizontal, 22).padding(.bottom, 12)
 
             Divider()
 
@@ -369,7 +407,7 @@ private struct ApplicationDetail: View {
                         }
                         .buttonStyle(.borderless)
                     }
-                    Text("\(model.relatedFiles.count) items · \(AppFormatters.bytes(selectedRelatedSize))")
+                    Text("\(model.relatedFiles.count) items · \(selectedSizePrefix + AppFormatters.bytes(selectedRelatedSize))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -413,24 +451,42 @@ private struct ApplicationDetail: View {
 
             Divider()
 
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Will move to Trash")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(AppFormatters.bytes((removesBundle ? application.size : 0) + selectedRelatedSize))
-                        .font(.system(.body, design: .rounded, weight: .semibold))
+            VStack(alignment: .leading, spacing: 8) {
+                if let warning = summary.warning {
+                    Label {
+                        HStack(spacing: 4) {
+                            Text("\(summary.omittedCount) items will be kept")
+                            Text(verbatim: "·")
+                            Text(summary.sizeText).monospacedDigit()
+                        }
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle")
+                    }
+                    .font(.caption).foregroundStyle(.secondary)
+                    .help(warning)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(warning)
+                    .accessibilityIdentifier("uninstaller.kept-items")
                 }
-                Spacer()
-                Button(role: .destructive) {
-                    showConfirmation = true
-                } label: {
-                    Label(isRemoving ? "Uninstalling…" : removesBundle ? "Uninstall" : "Remove Related Files", systemImage: "trash")
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Will move to Trash")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(selectedSizePrefix + AppFormatters.bytes(ApplicationStorageUsage.add(removesBundle ? application.size : 0, selectedRelatedSize)))
+                            .font(.system(.body, design: .rounded, weight: .semibold))
+                    }
+                    Spacer()
+                    Button(role: .destructive) {
+                        showConfirmation = true
+                    } label: {
+                        Label(isRemoving ? "Uninstalling…" : removesBundle ? "Uninstall" : "Remove Related Files", systemImage: "trash")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.critical)
+                    .disabled(isRemoving || model.isScanningRelatedFiles || (!removesBundle && !model.relatedFiles.contains(where: \.isSelected)))
+                    .accessibilityIdentifier("uninstaller.remove")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.critical)
-                .disabled(isRemoving || model.isScanningRelatedFiles || (!removesBundle && !model.relatedFiles.contains(where: \.isSelected)))
-                .accessibilityIdentifier("uninstaller.remove")
             }
             .padding(18)
         }
@@ -439,16 +495,16 @@ private struct ApplicationDetail: View {
             isPresented: $showConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Move to Trash", role: .destructive) {
+            Button(summary.confirmTitle, role: .destructive) {
                 isRemoving = true
                 Task {
                     await model.uninstallSelectedApplication()
                     isRemoving = false
                 }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(summary.cancelTitle, role: .cancel) {}
         } message: {
-            Text(removesBundle ? "The app and the selected related files will be moved to the Trash." : "Only the selected related files will be moved to the Trash. The app already in the Trash will be kept.")
+            Text(summary.confirmationMessage(removesBundle: removesBundle))
         }
     }
 }
@@ -473,7 +529,8 @@ private struct RelatedFileGroupView: View {
                         Text(group.category.title).font(.subheadline.weight(.semibold))
                         Spacer(minLength: 4)
                         Text("\(group.files.count) items").font(.caption).foregroundStyle(.secondary)
-                        Text(AppFormatters.bytes(group.size)).font(.caption.monospacedDigit())
+                        Text(group.files.allSatisfy { !$0.hasMeasuredSize } ? String(localized: "Not measured") :
+                             (group.files.allSatisfy(\.isSizeComplete) ? "" : "≥ ") + AppFormatters.bytes(group.size)).font(.caption.monospacedDigit())
                     }
                     .contentShape(Rectangle())
                 }
@@ -552,9 +609,13 @@ private struct RelatedFileRow: View {
                     Text(file.url.lastPathComponent).font(.subheadline.weight(.medium)).lineLimit(1)
                     Text(file.displayPath).font(.caption).foregroundStyle(.secondary)
                         .lineLimit(1).truncationMode(.middle)
+                    if let detail = file.association.detail {
+                        Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(2)
+                            .help(detail)
+                    }
                 }
                 Spacer(minLength: 4)
-                Text(AppFormatters.bytes(file.size)).font(.caption.monospacedDigit())
+                Text(file.sizeText).font(.caption.monospacedDigit())
                 Button { NSWorkspace.shared.activateFileViewerSelecting([file.url]) } label: {
                     Image(systemName: "folder")
                 }
