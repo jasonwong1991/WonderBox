@@ -12,6 +12,14 @@ typedef struct {
     double maximum_rpm;
 } WCFanReading;
 
+typedef struct {
+    char key[5];
+    double celsius;
+} WCTemperatureReading;
+
+/* Read-only CPU/GPU sensors. Keys are rediscovered on request, not on every sample. */
+int wc_smc_read_temperatures(WCTemperatureReading *readings, int capacity, int rediscover);
+
 int wc_smc_is_available(void);
 int wc_smc_fan_count(void);
 int wc_smc_fan_control_capabilities(void);

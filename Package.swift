@@ -15,7 +15,8 @@ let package = Package(
     products: [
         .executable(name: "WonderBox", targets: ["WonderBox"]),
         .executable(name: "WonderFanHelper", targets: ["WonderFanHelper"]),
-        .executable(name: "WonderMaintenanceHelper", targets: ["WonderMaintenanceHelper"])
+        .executable(name: "WonderMaintenanceHelper", targets: ["WonderMaintenanceHelper"]),
+        .executable(name: "WonderUninstallWatcher", targets: ["WonderUninstallWatcher"])
     ],
     targets: [
         .target(name: "WonderSupport", path: "Sources/WonderSupport"),
@@ -63,6 +64,12 @@ let package = Package(
         .executableTarget(
             name: "WonderMaintenanceHelper",
             path: "Sources/WonderMaintenanceHelper"
+        ),
+        .executableTarget(
+            name: "WonderUninstallWatcher",
+            dependencies: ["WonderSupport"],
+            path: "Sources/WonderUninstallWatcher",
+            exclude: ["Resources/Info.plist"]
         ),
         .testTarget(
             name: "WonderBoxTests",

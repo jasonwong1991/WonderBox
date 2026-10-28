@@ -251,7 +251,7 @@ final class SystemTrashTests: XCTestCase {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let model = try String(contentsOf: root.appendingPathComponent("Sources/WonderBox/Core/AppModel.swift"), encoding: .utf8)
         XCTAssertFalse(model.contains("PrivilegedService.trash("))
-        XCTAssertTrue(model.contains("SystemTrashService.trash(outcome.failed)"))
+        XCTAssertTrue(model.contains("SystemTrashService.remove(targets)"))
         let view = try String(contentsOf: root.appendingPathComponent("Sources/WonderBox/Views/ApplicationsView.swift"), encoding: .utf8)
         XCTAssertFalse(view.contains("Button(\"Details…\")"))
         XCTAssertFalse(view.contains("Button(\"Show Background Service…\")"))

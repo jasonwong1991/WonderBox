@@ -32,9 +32,8 @@ struct ApplicationsView: View {
                             .frame(width: 460, height: 240)
                         }
                 }
-                if model.uninstallNeedsFinderPermission {
-                    FinderPermissionGuidance()
-                }
+                if model.uninstallNeedsFinderPermission { FinderPermissionGuidance() }
+                if model.uninstallNeedsFullDiskAccess { CookiePermissionGuidance() }
                 if model.uninstallMessageIsError, !model.uninstallRemainingItems.isEmpty {
                     Button("Show Remaining Items in Finder") {
                         NSWorkspace.shared.activateFileViewerSelecting(model.uninstallRemainingItems)
@@ -310,10 +309,10 @@ private struct ApplicationDetail: View {
     private var removesBundle: Bool { ApplicationScanner.needsBundleRemoval(application.url) }
     private var bundleSizeForTotal: UInt64 { FilePresence.check(application.url) == .missing ? 0 : application.size }
     private var totalUsageText: String {
-        (application.storageUsage?.isComplete == true ? "" : "≥ ") + AppFormatters.bytes(ApplicationStorageUsage.add(bundleSizeForTotal, application.storageUsage?.relatedSize ?? 0))
+        (application.storageUsage?.isComplete == true && application.isBundleSizeComplete ? "" : "≥ ") + AppFormatters.bytes(ApplicationStorageUsage.add(bundleSizeForTotal, application.storageUsage?.relatedSize ?? 0))
     }
     private var breakdownText: String {
-        String(localized: "App: \(AppFormatters.bytes(bundleSizeForTotal)) · Related data: \(application.storageUsage.map { ($0.isComplete ? "" : "≥ ") + AppFormatters.bytes($0.relatedSize) } ?? String(localized: "Measuring…"))")
+        String(localized: "App: \((application.isBundleSizeComplete ? "" : "≥ ") + AppFormatters.bytes(bundleSizeForTotal)) · Related data: \(application.storageUsage.map { ($0.isComplete ? "" : "≥ ") + AppFormatters.bytes($0.relatedSize) } ?? String(localized: "Measuring…"))")
     }
 
     var body: some View {
@@ -397,22 +396,19 @@ private struct ApplicationDetail: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Related Files")
-                        .font(.headline)
-                    Spacer()
-                    if !model.relatedFiles.isEmpty {
-                        Button(model.relatedFiles.allSatisfy(\.isSelected) ? "Deselect All" : "Select All") {
-                            model.setAllRelatedFiles(!model.relatedFiles.allSatisfy(\.isSelected))
-                        }
-                        .buttonStyle(.borderless)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Related Files").font(.headline)
+                        Spacer()
+                        Text("\(model.relatedFiles.count) items · \(selectedSizePrefix + AppFormatters.bytes(selectedRelatedSize))")
+                            .font(.caption).foregroundStyle(.secondary)
                     }
-                    Text("\(model.relatedFiles.count) items · \(selectedSizePrefix + AppFormatters.bytes(selectedRelatedSize))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if !model.relatedFiles.isEmpty {
+                        RelatedFileSelectionControls(selected: model.relatedFiles.filter(\.isSelected).count, total: model.relatedFiles.count, selectAll: model.setAllRelatedFiles)
+                    }
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 18)
+                .padding(.top, 12)
 
                 if !removesBundle {
                     Text("The app is already in the Trash or removed. Only selected related files will be moved.")

@@ -7,6 +7,7 @@ struct SettingsView: View {
     @AppStorage("appearance") private var appearance = AppAppearance.system.rawValue
     @AppStorage("accent") private var accent = AccentChoice.ocean.rawValue
     @AppStorage("showMenuBar") private var showMenuBar = true
+    @AppStorage(MenuBarIconStyle.storageKey) private var menuBarIconStyle = MenuBarIconStyle.defaultStyle
     @AppStorage("confirmQuitOnClose") private var confirmQuitOnClose = true
     @StateObject private var launchAtLogin = LaunchAtLoginController()
     @State private var language = AppLanguage.current
@@ -84,6 +85,21 @@ struct SettingsView: View {
 
                         Divider()
 
+                        settingRow(String(localized: "Menu bar icon")) {
+                            Picker("Menu bar icon", selection: $menuBarIconStyle) {
+                                ForEach(MenuBarIconStyle.allCases) { style in
+                                    Text(style.title).tag(style)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            .frame(width: 220)
+                            .accessibilityLabel("Menu bar icon")
+                        }
+                        .help("Monochrome adapts to the menu bar appearance; Color keeps the original icon.")
+
+                        Divider()
+
                         Toggle(isOn: $confirmQuitOnClose) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Ask before quitting")
@@ -94,6 +110,9 @@ struct SettingsView: View {
                         }
 
                     }
+
+                    UninstallWatcherSettings(controller: model.uninstallWatcher)
+                    AutomaticCleanupSettings(controller: model.automaticCleanup)
 
                     settingsSection(String(localized: "Startup"), symbol: "power") {
                         Toggle(isOn: Binding(

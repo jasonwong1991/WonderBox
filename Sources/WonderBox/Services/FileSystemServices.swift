@@ -95,7 +95,7 @@ enum ApplicationScanner {
                 enumerator.skipDescendants()
                 let path = url.standardizedFileURL.path
                 guard seen.insert(path).inserted else { continue }
-                if let application = application(from: url) {
+                if let application = application(from: url, measureBundle: false) {
                     applications.append(application)
                 }
             }
@@ -103,17 +103,22 @@ enum ApplicationScanner {
         return applications.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
-    static func application(from url: URL) -> InstalledApplication? {
+    static func application(from url: URL, measureBundle: Bool = true) -> InstalledApplication? {
         guard url.pathExtension.lowercased() == "app", FileManager.default.fileExists(atPath: url.path) else { return nil }
         let bundle = Bundle(url: url)
         let values = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+        let indexed = FileSystemScanner.indexedPhysicalSize(of: url)
+        // Inventory must not recursively size every .app before displaying its name.
+        let size = indexed.map { AllocatedSizeMeasurement(bytes: $0) }
+            ?? (measureBundle ? ApplicationDataSize.measure(url, timeout: 0.06, maximumEntries: 1_500)
+                : AllocatedSizeMeasurement(isComplete: false, hasMeasuredSize: false))
         return InstalledApplication(
             url: url,
             name: bundle?.productName ?? url.deletingPathExtension().lastPathComponent,
             bundleIdentifier: bundle?.bundleIdentifier,
             version: (bundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
                 ?? (bundle?.object(forInfoDictionaryKey: "CFBundleVersion") as? String),
-            size: FileSystemScanner.indexedPhysicalSize(of: url) ?? FileSystemScanner.allocatedSize(of: url),
+            size: size.bytes,
             installedAt: FileSystemScanner.indexedDate("kMDItemDateAdded", of: url)
                 ?? values?.creationDate
                 ?? values?.contentModificationDate,
@@ -121,7 +126,8 @@ enum ApplicationScanner {
             relatedNames: [bundle?.infoDictionary?["CFBundleName"] as? String,
                            bundle?.infoDictionary?["CFBundleDisplayName"] as? String,
                            bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String,
-                           bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String].compactMap { $0 }
+                           bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String].compactMap { $0 },
+            isBundleSizeComplete: size.isComplete
         )
     }
 
@@ -325,6 +331,23 @@ enum ApplicationOrganizer {
     }
 }
 
+struct StorageCleanupResult: Sendable {
+    var removedBytes: UInt64 = 0
+    var removedCount = 0
+    var failedCount = 0
+    var skippedRunning = 0
+    var message: String {
+        let result = failedCount > 0
+            ? String(localized: "Cleaned \(removedCount) items; \(failedCount) are protected by the system")
+            : String(localized: "Cleaned \(removedCount) items, freeing about \(AppFormatters.bytes(removedBytes))")
+        return skippedRunning > 0 ? result + " · " + String(localized: "Skipped \(skippedRunning) caches because the app is running") : result
+    }
+    mutating func append(_ result: Self) {
+        removedBytes += result.removedBytes; removedCount += result.removedCount
+        failedCount += result.failedCount; skippedRunning += result.skippedRunning
+    }
+}
+
 enum StorageCleaner {
     private static var home: URL { FileManager.default.homeDirectoryForCurrentUser }
 
@@ -335,6 +358,40 @@ enum StorageCleaner {
                 category.kind != .systemCaches &&
                 category.isSelected &&
                 category.accessMessage == nil
+        }
+    }
+
+    /// Only identified, idle applications' rebuildable caches qualify for unattended cleanup.
+    /// No Finder/Trash, downloads, logs, application data or administrator operation is involved.
+    static func automaticCacheScan(runningApplications: Set<String>) -> [CleanupCategory] {
+        let root = home.appendingPathComponent("Library/Caches")
+        let urls = (FileSystemScanner.children(of: root) + sandboxedCaches()).filter {
+            MessagingCacheScanner.owner(of: $0, home: home) == nil
+        }
+        let estimates = DirectorySizeEstimator.estimate(urls, timeout: 4)
+        var categories = [makeCategory(.caches, locations: urls, estimates: estimates)]
+        CacheApplicationCatalog.attribute(&categories, home: home, catalog: CacheApplicationCatalog.discover())
+        return automaticCacheCategories(from: categories, runningApplications: runningApplications)
+    }
+
+    static func automaticCacheCategories(from categories: [CleanupCategory], runningApplications: Set<String>) -> [CleanupCategory] {
+        categories.filter { $0.kind == .caches && $0.accessMessage == nil }.compactMap { category in
+            var category = category
+            category.items = category.items.filter { item in
+                guard let owner = item.application else { return false }
+                let names = owner.aliases.union([RunningApplicationNames.normalize(owner.id), RunningApplicationNames.normalize(owner.name)])
+                return names.isDisjoint(with: runningApplications)
+                    && !runningApplications.contains(where: { $0.hasPrefix(RunningApplicationNames.normalize(owner.id) + ".") })
+                    && !owner.id.lowercased().hasPrefix("com.wondercraft.wonderbox")
+                    && item.url.standardizedFileURL == item.url.resolvingSymlinksInPath().standardizedFileURL
+                    && isSafe(item.url, for: .caches)
+            }.map { item in var item = item; item.isSelected = true; return item }
+            guard !category.items.isEmpty else { return nil }
+            category.locations = category.items.map(\.url)
+            category.size = category.items.reduce(0) { $0 + $1.size }
+            category.itemCount = category.items.count
+            category.isSelected = true
+            return category
         }
     }
 
@@ -408,6 +465,11 @@ enum StorageCleaner {
 
     static func clean(_ categories: [CleanupCategory], runningApplications: Set<String> = [],
                       runningMessagingApplications: () -> Set<MessagingApplication> = MessagingProcessInspector.current) -> String {
+        cleanResult(categories, runningApplications: runningApplications, runningMessagingApplications: runningMessagingApplications).message
+    }
+
+    static func cleanResult(_ categories: [CleanupCategory], runningApplications: Set<String> = [],
+                            runningMessagingApplications: () -> Set<MessagingApplication> = MessagingProcessInspector.current) -> StorageCleanupResult {
         let manager = FileManager.default
         var removed: UInt64 = 0
         var removedCount = 0
@@ -469,10 +531,7 @@ enum StorageCleaner {
         if let firstErrorCode { metrics[.errorCode] = firstErrorCode }
         DiagnosticLogger.shared.record(.cleanupFinished, outcome: failedCount > 0 || skippedRunning > 0 ? .partial : .success,
                                        errorFamily: failedCount > 0 ? .fileSystem : nil, metrics: metrics)
-        let result = failedCount > 0
-            ? String(localized: "Cleaned \(removedCount) items; \(failedCount) are protected by the system")
-            : String(localized: "Cleaned \(removedCount) items, freeing about \(AppFormatters.bytes(removed))")
-        return skippedRunning > 0 ? result + " · " + String(localized: "Skipped \(skippedRunning) caches because the app is running") : result
+        return StorageCleanupResult(removedBytes: removed, removedCount: removedCount, failedCount: failedCount, skippedRunning: skippedRunning)
     }
 
     static func isSafe(_ url: URL, for kind: CleanupKind) -> Bool {

@@ -8,6 +8,7 @@ struct WonderBoxApplication: App {
     @AppStorage("appearance") private var appearance = AppAppearance.system.rawValue
     @AppStorage("accent") private var accent = AccentChoice.ocean.rawValue
     @AppStorage("showMenuBar") private var showMenuBar = true
+    @AppStorage(MenuBarIconStyle.storageKey) private var menuBarIconStyle = MenuBarIconStyle.defaultStyle
     @AppStorage("awakeDuration") private var awakeDuration = AwakeDuration.oneHour.rawValue
     @AppStorage("keepDisplayAwake") private var keepDisplayAwake = false
     @Environment(\.scenePhase) private var scenePhase
@@ -35,6 +36,12 @@ struct WonderBoxApplication: App {
                 .frame(minWidth: 980, minHeight: 660)
                 .reportsMainWindow(to: dockPresence)
                 .onAppear { model.startMonitoring(); model.startApplicationServices() }
+                .onOpenURL { url in
+                    guard url.scheme == "wonderbox", url.host == "uninstall-review" else { return }
+                    dockPresence.willShowMainWindow()
+                    openWindow(id: "main")
+                    Task { await model.uninstallWatcher.checkPendingEvents() }
+                }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
                         model.startMonitoring()
@@ -84,13 +91,14 @@ struct WonderBoxApplication: App {
                 .environmentObject(dockPresence)
                 .preferredColorScheme(selectedAppearance.colorScheme)
         } label: {
-            Image(nsImage: MenuBarAppIcon.image)
+            Image(nsImage: MenuBarAppIcon.image(for: menuBarIconStyle))
+                .accessibilityLabel("WonderBox")
         }
         .menuBarExtraStyle(.window)
     }
 }
 
-private struct MenuBarContentView: View {
+struct MenuBarContentView: View {
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var dockPresence: DockPresenceController
     @Environment(\.openWindow) private var openWindow
@@ -132,7 +140,7 @@ private struct MenuBarContentView: View {
                     color: model.snapshot.thermalState == .nominal ? .healthy : .warning
                 )
                 Button {
-                    Task { await refreshStatus() }
+                    Task { await refreshStatus(); await model.refreshQuickCleanEstimate(force: true) }
                 } label: {
                     if isRefreshing {
                         ProgressView().controlSize(.mini)
@@ -153,6 +161,12 @@ private struct MenuBarContentView: View {
                 MenuMetric(title: String(localized: "Memory"), value: AppFormatters.percent(model.snapshot.memoryFraction))
                 MenuMetric(title: String(localized: "Disk"), value: AppFormatters.percent(model.snapshot.diskFraction))
             }
+
+            HStack(spacing: 8) {
+                MenuMetric(title: String(localized: "CPU Temperature"), value: TemperatureReading.summary(model.temperatures))
+                MenuMetric(title: String(localized: "GPU Temperature"), value: TemperatureReading.summary(model.temperatures, gpu: true))
+            }
+            .help("Highest available sensor reading; unavailable sensors show a dash")
 
             fanSummary
 
@@ -192,10 +206,22 @@ private struct MenuBarContentView: View {
                     title: String(localized: "Quick Clean"),
                     symbol: "sparkles",
                     isWorking: model.isQuickCleaning,
-                    isDisabled: optimizer.isOptimizing,
+                    isDisabled: optimizer.isOptimizing || model.isUninstallingApplication || model.isScanningStorage || model.isCleaningStorage || model.isEstimatingQuickClean,
                     action: { Task { await model.quickClean() } }
                 )
             }
+
+            Group {
+                if model.isEstimatingQuickClean {
+                    Label("Estimating reclaimable caches…", systemImage: "hourglass")
+                } else if let estimate = model.quickCleanEstimate {
+                    Label("Quick Clean · About \(AppFormatters.bytes(estimate)) reclaimable", systemImage: "externaldrive.badge.checkmark")
+                } else {
+                    Label("Cache estimate not available yet", systemImage: "externaldrive")
+                }
+            }
+            .font(.caption).foregroundStyle(.secondary)
+            .help("Estimate includes the default Quick Clean categories; actual reclaimed space may vary")
 
             if let actionMessage {
                 HStack(spacing: 8) {
@@ -247,7 +273,16 @@ private struct MenuBarContentView: View {
         .foregroundStyle(.primary)
         .padding(16)
         .frame(width: 360)
-        .task { model.startApplicationServices(); await refreshStatus() }
+        .task {
+            model.startApplicationServices()
+            await refreshStatus()
+            await model.refreshQuickCleanEstimate()
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(3)) } catch { return }
+                await refreshStatus()
+                await model.refreshQuickCleanEstimate()
+            }
+        }
     }
 
     private var fanSummary: some View {
@@ -329,35 +364,6 @@ private struct MenuQuickAction: View {
         }
         .disabled(isWorking || isDisabled)
     }
-}
-
-private enum MenuBarAppIcon {
-    static let image: NSImage = {
-        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
-            let tiles = [
-                NSRect(x: 3.5, y: 9.5, width: 5, height: 5),
-                NSRect(x: 9.5, y: 9.5, width: 5, height: 5),
-                NSRect(x: 3.5, y: 3.5, width: 5, height: 5),
-                NSRect(x: 9.5, y: 3.5, width: 5, height: 5)
-            ]
-
-            NSColor.black.setFill()
-            NSBezierPath(roundedRect: NSRect(x: 0.5, y: 0.5, width: 17, height: 17), xRadius: 4, yRadius: 4).fill()
-
-            NSGraphicsContext.current?.compositingOperation = .destinationOut
-            for tile in tiles {
-                NSBezierPath(roundedRect: tile, xRadius: 1.4, yRadius: 1.4).fill()
-            }
-            NSBezierPath(ovalIn: NSRect(x: 7.25, y: 7.25, width: 3.5, height: 3.5)).fill()
-
-            NSGraphicsContext.current?.compositingOperation = .sourceOver
-            NSColor.black.setFill()
-            NSBezierPath(ovalIn: NSRect(x: 8.25, y: 8.25, width: 1.5, height: 1.5)).fill()
-            return true
-        }
-        image.isTemplate = true
-        return image
-    }()
 }
 
 private struct MenuMetric: View {

@@ -35,7 +35,9 @@ enum SystemTrashService {
         var moved = 0
         var failed: [URL] = []
         var error: NSError?
+        var privacyDenied: [URL] = []
 
+        var needsFullDiskAccess: Bool { !privacyDenied.isEmpty }
         var isCancelled: Bool { error.map(SystemTrashService.isCancellation) ?? false }
         var needsFinderPermission: Bool { error?.domain == NSOSStatusErrorDomain && error?.code == -1743 }
 
@@ -50,6 +52,7 @@ enum SystemTrashService {
             if error?.domain == NSOSStatusErrorDomain && error?.code == -1712 {
                 return String(localized: "Finder has not finished responding and may still be moving items. Check Finder before retrying.")
             }
+            if needsFullDiskAccess { return UninstallFileAccess.cookieAccessMessage }
             if let error {
                 // Report the system operation's actual error, not an inference about Full Disk Access.
                 return String(localized: "macOS did not move some items to the Trash: \(error.localizedDescription)")
@@ -62,6 +65,37 @@ enum SystemTrashService {
     @MainActor
     static func trash(_ urls: [URL]) async -> Outcome {
         await trash(urls, recycle: recycle)
+    }
+
+    /// Both uninstall UIs use the application's own privacy grant first. Finder is
+    /// only a fallback for other failures, never Cookie privacy denials.
+    @MainActor
+    static func remove(_ urls: [URL]) async -> Outcome {
+        await remove(urls, direct: { urls in
+            await Task.detached(priority: .userInitiated) { DirectTrashResult.attempt(urls) }.value
+        }, fallback: trash)
+    }
+
+    @MainActor
+    static func remove(_ urls: [URL], direct: ([URL]) async -> DirectTrashResult,
+                       fallback: ([URL]) async -> Outcome,
+                       presence: (URL) -> FilePresence = FilePresence.check) async -> Outcome {
+        let first = await direct(urls)
+        var metrics: [DiagnosticMetric: Int64] = [.count: Int64(first.moved), .failed: Int64(first.failed.count)]
+        if let error = first.failed.compactMap({ first.errors[$0] }).first { metrics[.errorCode] = Int64(error.code) }
+        DiagnosticLogger.shared.record(.applicationTrashAttempt, outcome: first.failed.isEmpty ? .success : .partial,
+                                       errorFamily: first.failed.isEmpty ? nil : .fileSystem, metrics: metrics)
+        let privacy = Set(first.privacyDenied)
+        let retry = first.failed.filter { !privacy.contains($0) && presence($0) != .missing }
+        if let cancelled = first.errors.values.first(where: isCancellation) {
+            return Outcome(moved: first.moved, failed: first.failed, error: cancelled, privacyDenied: first.privacyDenied)
+        }
+        var result = retry.isEmpty ? Outcome() : await fallback(retry)
+        result.moved += first.moved
+        result.privacyDenied = first.privacyDenied.filter { presence($0) != .missing }
+        result.failed += result.privacyDenied.filter { !result.failed.contains($0) }
+        if result.error == nil { result.error = result.failed.compactMap { first.errors[$0] }.first }
+        return result
     }
 
     /// Injectable system boundary: unit tests never launch Finder or display authentication UI.

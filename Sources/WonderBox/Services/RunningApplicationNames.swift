@@ -5,10 +5,10 @@ import Foundation
 /// user-data folders, so `Application Support/<Folder>` can be matched against a live process.
 enum RunningApplicationNames {
     @MainActor
-    static func current() -> Set<String> {
+    static func current(includeBackground: Bool = false) -> Set<String> {
         var names = Set<String>()
         for application in NSWorkspace.shared.runningApplications {
-            if application.activationPolicy == .prohibited {
+            if application.activationPolicy == .prohibited && !includeBackground {
                 // Mini-program and background helpers can keep messaging caches open after the main
                 // window closes. Preserve their identifiers without changing generic browser aliases.
                 if let id = application.bundleIdentifier, MessagingApplication.allCases.contains(where: { $0.matches(id) }) {

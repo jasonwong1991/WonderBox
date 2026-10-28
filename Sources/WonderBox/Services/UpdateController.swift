@@ -27,8 +27,8 @@ final class UpdateController: ObservableObject {
 
     var isBusy: Bool { status == .checking || status == .downloading }
 
-    init(currentVersion: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.6.0",
-         buildVersion: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "6",
+    init(currentVersion: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.1",
+         buildVersion: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "101",
          client: any UpdateFetching = GitHubUpdateClient(), defaults: UserDefaults = .standard,
          logger: DiagnosticLogger = .shared, clock: @escaping () -> Date = Date.init) {
         self.currentVersion = currentVersion

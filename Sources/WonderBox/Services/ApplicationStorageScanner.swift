@@ -139,6 +139,7 @@ struct ApplicationStorageUpdate: Sendable {
     let id: URL
     let usage: ApplicationStorageUsage
     var identity: ApplicationRelatedIdentity? = nil
+    var bundleMeasurement: AllocatedSizeMeasurement? = nil
 }
 
 enum ApplicationStorageScanner {
@@ -151,9 +152,12 @@ enum ApplicationStorageScanner {
             let worker = Task.detached(priority: .utility) {
                 for app in applications {
                     guard !Task.isCancelled else { break }
+                    let bundleSize = app.isBundleSizeComplete ? nil : cache.cachedMeasurement(app.url)
+                        ?? ApplicationDataSize.measure(app.url, timeout: 0.06, maximumEntries: 1_500)
+                    if let bundleSize, !Task.isCancelled { cache.storeMeasurement(bundleSize, at: app.url) }
                     let result = autoreleasepool { scan(app) }
                     guard !Task.isCancelled else { break }
-                    continuation.yield(ApplicationStorageUpdate(id: app.id, usage: ApplicationStorageUsage(files: result.files, isComplete: result.accessMessage == nil), identity: result.identity))
+                    continuation.yield(ApplicationStorageUpdate(id: app.id, usage: ApplicationStorageUsage(files: result.files, isComplete: result.accessMessage == nil), identity: result.identity, bundleMeasurement: bundleSize))
                     // Leave breathing room for Finder, UI interaction and other system IO.
                     try? await Task.sleep(for: .milliseconds(15))
                 }

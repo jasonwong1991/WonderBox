@@ -6,6 +6,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("suppressFullDiskAccessPrompt") private var suppressFullDiskAccessPrompt = false
     @State private var showFullDiskAccessPrompt = false
+    @State private var didPreparePrompts = false
 
     var body: some View {
         NavigationSplitView {
@@ -42,6 +43,7 @@ struct RootView: View {
                 .background(Color.appBackground)
         }
         .navigationSplitViewStyle(.balanced)
+        .background(UninstallWatcherPresentation(controller: model.uninstallWatcher, isBlocked: !didPreparePrompts || showFullDiskAccessPrompt))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 CurrentSectionRefreshButton(controller: model.sectionRefresh, section: model.selection ?? .overview, compact: true)
@@ -49,6 +51,7 @@ struct RootView: View {
         }
         .onAppear {
             showFullDiskAccessPrompt = model.shouldOfferFullDiskAccess(suppressed: suppressFullDiskAccessPrompt)
+            didPreparePrompts = true
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }

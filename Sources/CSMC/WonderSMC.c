@@ -547,3 +547,55 @@ int wc_smc_set_all_fans_rpm(double rpm) {
     IOServiceClose(connection);
     return result;
 }
+
+// Temperature keys differ across Intel and Apple Silicon generations. Enumerate the
+// actual SMC catalog; never manufacture a value for an unexposed physical core.
+#include <pthread.h>
+static pthread_mutex_t temperature_lock = PTHREAD_MUTEX_INITIALIZER;
+static char temperature_keys[256][5];
+static int temperature_key_count = 0;
+static int temperature_catalog_loaded = 0;
+
+int wc_smc_read_temperatures(WCTemperatureReading *readings, int capacity, int rediscover) {
+    if (!readings || capacity <= 0) return 0;
+    pthread_mutex_lock(&temperature_lock);
+    io_connect_t connection = IO_OBJECT_NULL;
+    if (smc_open(&connection) != kIOReturnSuccess) {
+        pthread_mutex_unlock(&temperature_lock);
+        return 0;
+    }
+    if (rediscover || !temperature_catalog_loaded) {
+        temperature_key_count = 0;
+        SMCValue count_value;
+        if (smc_read(connection, "#KEY", &count_value) == kIOReturnSuccess && count_value.size == 4) {
+            uint32_t count = ((uint32_t)count_value.bytes[0] << 24) | ((uint32_t)count_value.bytes[1] << 16) |
+                             ((uint32_t)count_value.bytes[2] << 8) | count_value.bytes[3];
+            for (uint32_t i = 0; i < count && i < 32768 && temperature_key_count < 256; i++) {
+                SMCKeyData input = {0}, output = {0};
+                input.command = 8; // Get key by index.
+                input.data32 = i;
+                if (smc_call(connection, &input, &output) != kIOReturnSuccess || output.result != 0) continue;
+                char key[5] = {(char)(output.key >> 24), (char)(output.key >> 16),
+                               (char)(output.key >> 8), (char)output.key, 0};
+                if (key[0] != 'T' || !strchr("CcpefGg", key[1]) || key[1] == 0) continue;
+                SMCValue value;
+                if (smc_read(connection, key, &value) != kIOReturnSuccess) continue;
+                if (value.type != four_char_code("sp78") && value.type != four_char_code("flt ")) continue;
+                memcpy(temperature_keys[temperature_key_count++], key, 5);
+            }
+            temperature_catalog_loaded = 1;
+        }
+    }
+    int found = 0;
+    for (int i = 0; i < temperature_key_count && found < capacity; i++) {
+        SMCValue value;
+        if (smc_read(connection, temperature_keys[i], &value) != kIOReturnSuccess) continue;
+        double celsius = smc_numeric_value(&value);
+        if (!isfinite(celsius) || celsius < 10 || celsius > 125) continue;
+        memcpy(readings[found].key, temperature_keys[i], 5);
+        readings[found++].celsius = celsius;
+    }
+    IOServiceClose(connection);
+    pthread_mutex_unlock(&temperature_lock);
+    return found;
+}

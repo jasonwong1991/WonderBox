@@ -34,6 +34,16 @@ final class RelatedFileScanCache: @unchecked Sendable {
         }
     }
 
+    /// Permissions can change without directory mtimes changing. Keep complete
+    /// bundle identity metadata, but discard denied/partial filesystem snapshots.
+    func invalidateFileAccess() {
+        lock.withLock {
+            listings.removeAll(); owners.removeAll(); ownerProbes.removeAll(); sizes.removeAll()
+            identities = identities.filter { $0.value.value.isComplete }
+            metadataValues = metadataValues.filter { $0.value.value != nil }
+        }
+    }
+
     func children(_ url: URL) throws -> [URL] {
         let key = url.standardizedFileURL.path
         let stamp = Stamp(url)

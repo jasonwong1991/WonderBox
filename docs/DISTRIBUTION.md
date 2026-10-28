@@ -20,6 +20,9 @@ Reference policy: [App Review Guidelines](https://developer.apple.com/app-store/
 | Full Disk Access onboarding | System Settings privacy pane | No | Yes, user-controlled |
 | `/Library/Caches` cleanup | Fixed-command maintenance helper | No | Yes |
 | Empty user Trash | Foundation file APIs | Sandbox-limited | Yes |
+| Individual CPU/GPU temperatures | Read-only AppleSMC catalog | No | Hardware-dependent |
+| Finder uninstall watcher | Opt-in `SMAppService.loginItem`, directory metadata and bookmarks | No | Yes |
+| Scheduled cache cleanup | Opt-in in-process timer; identified idle-app caches only | Sandbox-limited | Yes |
 | Fan read/write | AppleSMC user client | No | Hardware-dependent |
 | Check/download releases | GitHub HTTPS endpoints, URLSession, SHA-256 | Use Store updates instead | Yes; no automatic installation |
 | Local diagnostic logs/export | Bounded JSONL, user-selected ZIP | Sandbox-local storage | Yes; no automatic upload |
@@ -28,7 +31,7 @@ Reference policy: [App Review Guidelines](https://developer.apple.com/app-store/
 
 1. Create an Xcode macOS app target with bundle identifier `com.wondercraft.WonderBox`.
 2. Enable App Sandbox and user-selected read/write access with `WonderBox-AppStore.entitlements`.
-3. Exclude `CSMC`, both privileged helpers, system-cache cleanup, and the fan write controls from the Store target. The direct-release updater is hidden and disabled in sandboxed builds; use Store updates.
+3. Exclude `CSMC`, both privileged helpers, `WonderUninstallWatcher`, system-cache cleanup, and the fan write controls from the Store target. The direct-release updater is hidden and disabled in sandboxed builds; use Store updates.
 4. Use security-scoped bookmarks for folders explicitly selected by the user.
 5. Keep `PrivacyInfo.xcprivacy` in the application resources.
 6. Archive, validate, notarize, and run App Store Connect privacy checks.
@@ -60,3 +63,23 @@ When WonderBox is active, the Finder fallback first calls the macOS 14 cooperati
 Use a stable semantic-version tag (`vMAJOR.MINOR.PATCH`), publish `WonderBox-MAJOR.MINOR.PATCH.zip` and include its SHA-256 in `SHA256SUMS`. Mark the release Latest only after the ZIP and checksums are uploaded. The updater uses the [latest-release API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release); API `assets[].digest` is preferred, with `SHA256SUMS` as a fallback. On REST quota errors, the official `releases/latest` redirect plus archive HEAD and checksum requests supply the same information. Draft/prerelease versions, foreign URLs, oversized assets (over 200 MiB), invalid hashes and downgrades are rejected.
 
 The current downloads remain ad-hoc signed; SHA-256 checks transfer integrity against GitHub's metadata, not independent publisher authenticity. Downloaded archives retain normal quarantine provenance. No application replacement, helper authorization changes or Gatekeeper changes are performed by the updater.
+
+
+## 1.0 login item packaging and acceptance
+
+`WonderUninstallWatcher.app` is embedded at `WonderBox.app/Contents/Library/LoginItems/` and signed **before** the parent app. Its identifier must match `com.wondercraft.WonderBox.UninstallWatcher` in `SMAppService.loginItem`. Unlike the fan/maintenance helper, this is an unprivileged, optional per-user login item. Never register it during packaging or silently turn on automatic cleanup. When using Developer ID, sign all nested code with the distribution identity before signing the parent and notarizing.
+
+Before distributing 1.0.1 (build 101), test on macOS 14 and current macOS with disposable applications:
+
+1. Fresh launch: decline plugin installation; reopen the app and confirm the offer does not repeat. Install from Settings, approve the login item if macOS requests it, and verify its running state.
+2. Keep the user session logged in, quit WonderBox, move a disposable app from Applications to the Trash, verify that the filesystem event opens the review without a fixed 30-second wait; when Trash evidence is unavailable, allow the eight-second grace period, then verify that WonderBox opens a related-file review. Keep Files must not remove anything. Selected files must be recoverable from the Trash after confirmation.
+3. Rename/move an app, perform an in-place update, restore it during the grace period, and keep a second installed copy. No uninstall prompt should appear for those cases. A running/restored/reinstalled app must not have its data cleaned. Repeat with a permanent fixture deletion and restricted access; incomplete coverage must be visible.
+4. Uninstall the plugin from Settings and confirm it stops and stays unregistered after login. The containing helper stays bundled for later reinstallation, but no background service remains registered.
+5. Visit Cleanup for the first time and decline automatic cleanup. Enable it later, check size-only/time-only/either settings, restart, and verify persistence. Exercise on disposable caches only; unknown/running/symlink/message data and Trash must remain untouched. Toggle off during a run and verify that no subsequent item begins.
+6. Validate Fan and compact-window temperatures on Intel and Apple Silicon. Missing readings must remain unavailable, not zero or a fabricated per-core value. Check English/Chinese and light/dark layouts. Compare Quick Clean's estimate with its default-category scan and the post-clean result.
+
+Automated tests cover tracker debouncing/moves/duplicates, queue persistence, scope filtering, scheduling boundaries, preferences, mutation locking, sensor validation, localization and offscreen layouts. They do not install a login item or approve system dialogs on the developer's account; the interactive acceptance above remains a release gate.
+
+### 1.0.1 uninstall permission and latency checks
+
+Verify Select All / Deselect All in both views, including while sizes are being filled in. Exercise an ordinary user-owned disposable Cookie file through the direct Trash stage and a denied Cookie fixture: Finder should not be invoked for the latter, other selected items should proceed, and Full Disk Access guidance must identify the current app copy. Do not assume administrator authentication grants TCC access or test by deleting real browser cookies. A permission-denied exact-name probe is not evidence of a file and must not appear as a removable item. Confirm that Restart Plugin preserves queued reviews and starts the updated embedded binary.

@@ -155,16 +155,17 @@ struct InstalledApplication: Identifiable, Equatable, Sendable {
     let name: String
     let bundleIdentifier: String?
     let version: String?
-    let size: UInt64
+    var size: UInt64
     let installedAt: Date?
     let lastUsedAt: Date?
     var relatedNames: [String] = []
     var relatedIdentity: ApplicationRelatedIdentity? = nil
     var storageUsage: ApplicationStorageUsage? = nil
+    var isBundleSizeComplete = true
 
     var totalSize: UInt64 { ApplicationStorageUsage.add(size, storageUsage?.relatedSize ?? 0) }
     var totalSizeText: String {
-        (storageUsage?.isComplete == true ? "" : "≥ ") + AppFormatters.bytes(totalSize)
+        (storageUsage?.isComplete == true && isBundleSizeComplete ? "" : "≥ ") + AppFormatters.bytes(totalSize)
     }
 }
 

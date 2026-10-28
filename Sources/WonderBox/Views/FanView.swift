@@ -6,6 +6,39 @@ struct FanView: View {
     @State private var customRPM = 2_400.0
     @State private var isApplying = false
 
+    private var temperaturePanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Core Temperatures", systemImage: "thermometer.medium").font(.headline)
+            Text("Each available CPU/GPU sensor is shown separately. Sensor coverage and physical-core mapping depend on this Mac; missing cores are not estimated.")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if model.temperatures.isEmpty {
+                Text(model.hasReadFans ? "No temperature sensors exposed on this Mac" : "Reading temperature sensors…")
+                    .foregroundStyle(.secondary)
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), spacing: 12)], spacing: 12) {
+                    ForEach(model.temperatures) { reading in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(reading.title).font(.caption).foregroundStyle(.secondary)
+                            Text(reading.formatted).font(.system(.title3, design: .rounded, weight: .semibold)).monospacedDigit()
+                            Text(reading.id).font(.caption2.monospaced()).foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(12)
+                        .background(Color.subtleBackground).clipShape(RoundedRectangle(cornerRadius: 7))
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+            }
+        }.appPanel()
+    }
+
+    private func temperatureSummary(_ title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(title, systemImage: "thermometer.medium").font(.subheadline).foregroundStyle(.secondary)
+            Text(value).font(.system(.title2, design: .rounded, weight: .semibold)).monospacedDigit()
+        }.frame(maxWidth: .infinity, alignment: .leading).appPanel()
+        .help("Highest available sensor reading; unavailable sensors show a dash")
+    }
+
     private var rpmRange: ClosedRange<Double> {
         let minimum = model.fans.map(\.minimumRPM).filter { $0 > 0 }.max() ?? 1_200
         let maximum = model.fans.map(\.maximumRPM).filter { $0 > minimum }.min() ?? 6_000
@@ -25,6 +58,11 @@ struct FanView: View {
                     )
                     Spacer()
                     StatusPill(text: String(localized: "Direct build module"), color: Color(hex: 0x7A67D8), symbol: "lock.shield")
+                }
+
+                HStack(spacing: 14) {
+                    temperatureSummary(String(localized: "CPU Temperature"), value: TemperatureReading.summary(model.temperatures))
+                    temperatureSummary(String(localized: "GPU Temperature"), value: TemperatureReading.summary(model.temperatures, gpu: true))
                 }
 
                 if !model.hasReadFans {
@@ -100,6 +138,8 @@ struct FanView: View {
                     }
                 }
                 .appPanel()
+
+                temperaturePanel
             }
             .padding(28)
             .frame(maxWidth: 1_050, alignment: .leading)

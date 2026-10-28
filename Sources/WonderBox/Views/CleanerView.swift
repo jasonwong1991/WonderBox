@@ -3,6 +3,8 @@ import SwiftUI
 
 struct CleanerView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var showAutomaticCleanupPrompt = false
+    @State private var showAutomaticCleanupSettings = false
     @State private var showConfirmation = false
     @State private var isCleaning = false
     @State private var detailKind: CleanupKind?
@@ -26,6 +28,10 @@ struct CleanerView: View {
                 scanModeControl
 
                 cleanupSummary
+
+                Button { showAutomaticCleanupSettings = true } label: {
+                    Label("Automatic Cleanup Settings", systemImage: "clock.arrow.circlepath")
+                }
 
                 VStack(spacing: 10) {
                     ForEach(model.cleanupCategories) { category in
@@ -51,17 +57,30 @@ struct CleanerView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color(hex: 0xE45E65))
-                    .disabled(model.selectedCleanupItemCount == 0 || model.isScanningStorage || isCleaning)
+                    .disabled(model.selectedCleanupItemCount == 0 || model.isScanningStorage || model.isCleaningStorage || model.isEstimatingQuickClean || isCleaning)
                 }
             }
             .padding(28)
             .frame(maxWidth: 960, alignment: .leading)
         }
         .onAppear {
+            showAutomaticCleanupPrompt = model.automaticCleanup.consumeFirstUsePrompt()
             guard model.cleanupCategories.allSatisfy({ $0.itemCount == 0 }) else { return }
             Task { await model.scanStorage() }
         }
-        .sectionRefresh(.cleaner, busy: model.isScanningStorage || isCleaning || model.isQuickCleaning) { await model.scanStorage() }
+        .alert("Enable automatic cleanup?", isPresented: $showAutomaticCleanupPrompt) {
+            Button("Configure and Enable…") { showAutomaticCleanupSettings = true }
+            Button("Not Now", role: .cancel) {}
+        } message: {
+            Text("Choose a cache-size threshold or a time interval. Automatic cleanup is off until you enable it, and only rebuildable caches of idle apps are included. You can change this later in Settings.")
+        }
+        .sheet(isPresented: $showAutomaticCleanupSettings) {
+            VStack(spacing: 16) {
+                AutomaticCleanupSettings(controller: model.automaticCleanup)
+                Button("Done") { showAutomaticCleanupSettings = false }.keyboardShortcut(.defaultAction)
+            }.padding(24).frame(width: 560)
+        }
+        .sectionRefresh(.cleaner, busy: model.isScanningStorage || model.isCleaningStorage || model.isEstimatingQuickClean || isCleaning || model.isQuickCleaning) { await model.scanStorage() }
         .confirmationDialog(
             "Clean the selected items?",
             isPresented: $showConfirmation,
@@ -98,7 +117,7 @@ struct CleanerView: View {
             }
             .pickerStyle(.segmented)
             .fixedSize()
-            .disabled(model.isScanningStorage || isCleaning)
+            .disabled(model.isScanningStorage || model.isCleaningStorage || model.isEstimatingQuickClean || isCleaning)
 
             if model.cleanupScanMode == .deep {
                 Label("Extra categories start unselected and can be restored from the Trash", systemImage: "shield.checkered")

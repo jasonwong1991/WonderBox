@@ -21,6 +21,30 @@
   English · <a href="README.zh-CN.md">简体中文</a>
 </p>
 
+## 1.0 Stable Release
+
+Current version: **1.0.1**, build **101**. [Download](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.0.1) · [Release notes](docs/releases/v1.0.1.md).
+
+- **Core temperatures:** the Fan page shows CPU/GPU temperature summaries and individual available sensors. Recognized Intel core keys get core numbers; Apple Silicon and unknown mappings retain their sensor keys. Missing physical cores are never filled with estimated or duplicate temperatures.
+- **Optional uninstall watcher:** offered on first launch and installable/removable in Settings. A separate macOS login item watches `/Applications` and `~/Applications`, even after WonderBox quits. Deleting an app or moving it to the Trash in Finder opens a related-file review; files only move to the Trash after explicit confirmation.
+- **Compact window:** the menu-bar/Dock shortcut panel shows CPU/GPU temperatures and the estimated reclaimable amount for the existing default Quick Clean categories, refreshed after cleanup. Actual reclaimed space can differ.
+- **Automatic cleanup:** off by default, with a first-visit prompt on the Cleanup page. Choose a cache threshold (128 MB–100 GB), an interval (1 hour–30 days), or either condition. Configure or disable it from Cleanup or Settings.
+
+### 1.0.1 uninstall fixes
+
+- Both uninstall interfaces have Select All / Deselect All. Discovery appears before background size measurement; late size results preserve selection. Confirmation no longer repeats the full related-file scan.
+- The application list no longer walks every bundle before displaying it. After uninstall, only the affected application is updated instead of rescanning the complete inventory.
+- Both interfaces now try WonderBox's own Trash API before Finder. Cookie permission denials lead to Full Disk Access guidance, not repeated administrator prompts. Unreadable directories no longer produce guessed Cookie filenames.
+- **After updating, click Restart Plugin in Settings** to replace the already-running watcher. Pending reviews are preserved.
+
+### Background behavior and cleanup scope
+
+The watcher uses recursive FSEvents notifications, with a 30-second fallback check. A bookmark confirmed in Trash is queued immediately instead of waiting 30 seconds; unconfirmed path disappearance retains an eight-second app-replacement grace period. It accounts for ordinary app replacement, rename and duplicate-install cases, and uses bookmarks to distinguish relocation from Trash. Directory read failures are not evidence of removal. It neither deletes files nor requests administrator access; the main app rechecks whether the removed app is running, restored or reinstalled before cleanup. macOS may require approval in **System Settings → General → Login Items & Extensions**. Watching runs while the user is logged in. Permanently deleted bundles may lack component metadata; the review reports incomplete coverage.
+
+Automatic cleanup checks every five minutes **while WonderBox is running**, including when only the menu bar remains. Quitting pauses it; reopening resumes checks with the saved settings. Enable **Launch at login** separately for automatic startup. Unattended cleanup includes only identified idle apps' rebuildable caches. Unknown owners, symlinks, messaging caches, system caches, downloads, backups, application data and the Trash are excluded. Cleanup operations are serialized and running apps are rechecked between cache items. Turning it off stops subsequent items after the current filesystem operation finishes.
+
+The watcher requires the complete `.app` from `./scripts/package_app.sh`; `swift run` does not embed a registrable login item. Published downloads remain ad-hoc signed and are not notarized; see [Distribution](docs/DISTRIBUTION.md).
+
 ![WonderBox overview page showing CPU, memory, disk, network, battery and uptime](docs/screenshots/overview.png)
 
 > The interface supports English and Simplified Chinese. Scans and diagnostic logs stay on-device. Update checks contact GitHub; logs are shared only if you export and send them yourself.
@@ -122,6 +146,7 @@ Drill into any folder level by level: metadata rows appear first, then four canc
 - Live fan RPM from AppleSMC; quiet/balanced/performance/custom modes on Macs that expose writable fan control (Apple Silicon `Ftst` unlock included), always revertible to automatic
 - Keep-awake with a 30 min / 1 h / 2 h / indefinite timer and optional display wake, using public IOKit assertions
 - Menu bar dashboard: CPU, memory, disk, fan RPM, keep-awake toggle, memory optimization and one-click cleanup without opening the window
+- Choose **Color** or **Monochrome** under **Settings → Always Available → Menu bar icon**. Color preserves the original icon (the default); monochrome follows the system menu bar appearance. Changes apply immediately and are remembered across launches.
 - System / light / dark appearance, four accent colours, launch at login
 - A dedicated Startup settings area with approval status and an entry point to macOS Login Items management; external changes are reflected when returning to WonderBox
 
@@ -157,7 +182,7 @@ swift test
 open build/WonderBox.app
 ```
 
-The package builds `WonderBox` plus two helpers. `package_app.sh` produces a locally signed `build/WonderBox.app` with the generated icon, compiled string catalogs and bundled helpers; `UNIVERSAL=1 ./scripts/package_app.sh` builds the Apple Silicon + Intel binary used for releases.
+The package builds `WonderBox`, two maintenance helpers and the optional uninstall watcher login item. `package_app.sh` produces a locally signed `build/WonderBox.app` with the generated icon, compiled string catalogs and bundled helpers; `UNIVERSAL=1 ./scripts/package_app.sh` builds the Apple Silicon + Intel binaries used for releases.
 
 ## Languages
 

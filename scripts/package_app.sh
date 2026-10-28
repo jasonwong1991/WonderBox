@@ -18,6 +18,11 @@ fi
 
 rm -rf "$APP"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Helpers" "$CONTENTS/Resources"
+WATCHER="$CONTENTS/Library/LoginItems/WonderUninstallWatcher.app/Contents"
+mkdir -p "$WATCHER/MacOS" "$WATCHER/Resources"
+cp "$BIN_DIR/WonderUninstallWatcher" "$WATCHER/MacOS/WonderUninstallWatcher"
+cp "Sources/WonderUninstallWatcher/Resources/Info.plist" "$WATCHER/Info.plist"
+cp "Sources/WonderBox/Resources/PrivacyInfo.xcprivacy" "$WATCHER/Resources/PrivacyInfo.xcprivacy"
 cp "$BIN_DIR/WonderBox" "$CONTENTS/MacOS/WonderBox"
 cp "$BIN_DIR/WonderFanHelper" "$CONTENTS/Helpers/WonderFanHelper"
 cp "$BIN_DIR/WonderMaintenanceHelper" "$CONTENTS/Helpers/WonderMaintenanceHelper"
@@ -41,6 +46,7 @@ done
 iconutil -c icns "$ICONSET" -o "$CONTENTS/Resources/AppIcon.icns"
 rm -rf "$ICONSET"
 
+codesign --force --sign - "$CONTENTS/Library/LoginItems/WonderUninstallWatcher.app"
 codesign --force --sign - "$CONTENTS/Helpers/WonderFanHelper"
 codesign --force --sign - "$CONTENTS/Helpers/WonderMaintenanceHelper"
 python3 scripts/configure_helper_identity.py "$APP"

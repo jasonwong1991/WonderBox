@@ -31,6 +31,7 @@ struct RelatedFileScan: Sendable {
     var inaccessibleLocations: [URL]
     var identity: ApplicationRelatedIdentity? = nil
     var isDiscoveryComplete = true
+    var bundleMeasurement: AllocatedSizeMeasurement? = nil
 
     var accessMessage: String? {
         if !isDiscoveryComplete && inaccessibleLocations.isEmpty {
@@ -157,11 +158,15 @@ enum RelatedFileScanner {
                 return []
             }
         }
-        func append(_ url: URL, association: RelatedFileAssociation = .standard) {
+        func append(_ url: URL, association: RelatedFileAssociation = .standard, confirmedByListing: Bool = false) {
             let url = url.standardizedFileURL
             if url.deletingLastPathComponent() == library.appendingPathComponent("Caches").standardizedFileURL,
                RelatedFileLocations.sharedCacheRoots.contains(where: { $0.lowercased() == url.lastPathComponent.lowercased() }) { return }
-            guard FilePresence.check(url) != .missing,
+            let presence = FilePresence.check(url)
+            // EACCES/EPERM is not evidence that an exact guessed filename exists.
+            // In particular an unreadable Cookies folder must not invent four files
+            // (identifier, plist, binarycookies, savedState) that later fail deletion.
+            guard presence == .present || (presence == .inaccessible && confirmedByListing),
                   (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) != true else { return }
             // Shared group data stays opt-in even when a name rule also finds it.
             let association: RelatedFileAssociation = url.deletingLastPathComponent().lastPathComponent == "Group Containers" ? .applicationGroup : association
@@ -225,7 +230,7 @@ enum RelatedFileScanner {
             let base = root.path.hasPrefix(home.path + "/") ? home : systemLibrary
             if root.path.hasPrefix(base.path + "/"), !ApplicationIdentityScanner.noSymlinkComponents(root, below: base) { continue }
             for url in listing(root) {
-                if rule.matches(url.lastPathComponent) { append(url, association: association) }
+                if rule.matches(url.lastPathComponent) { append(url, association: association, confirmedByListing: true) }
                 else if rule.container, let owner = containerIdentifier(url) {
                     if identity.applicationGroups.contains(owner) { append(url, association: .applicationGroup) }
                     else if identifiers.contains(where: { ApplicationScanner.belongs(owner, toIdentifier: $0) }) {
@@ -233,7 +238,11 @@ enum RelatedFileScanner {
                     }
                 }
             }
-            for name in rule.exact { append(root.appendingPathComponent(name), association: association) }
+            // A complete directory listing already covered every matching name.
+            // Exact probes are useful only as a fallback for unreadable directories.
+            if unreadable.contains(root) {
+                for name in rule.exact { append(root.appendingPathComponent(name), association: association) }
+            }
         }
         // Shared updater/crash SDK caches are one known level deeper than normal caches.
         // Exact probes only: a user's app cache may contain millions of unrelated entries.

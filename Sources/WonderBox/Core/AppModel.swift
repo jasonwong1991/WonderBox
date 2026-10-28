@@ -12,6 +12,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var cpuHistory: [Double] = Array(repeating: 0, count: 30)
     @Published private(set) var gpuHistory: [Double] = Array(repeating: 0, count: 30)
     @Published private(set) var memoryHistory: [Double] = Array(repeating: 0, count: 30)
+    @Published private(set) var temperatures: [TemperatureReading] = []
     @Published private(set) var fans: [FanReading] = []
     @Published private(set) var isRefreshingFans = false
     @Published private(set) var hasReadFans = false
@@ -55,7 +56,12 @@ final class AppModel: ObservableObject {
     @Published private(set) var operationMessage: String?
     @Published private(set) var uninstallMessageIsError = false
     @Published private(set) var uninstallNeedsFinderPermission = false
+    @Published private(set) var uninstallNeedsFullDiskAccess = false
     @Published private(set) var uninstallRemainingItems: [URL] = []
+    @Published private(set) var isCleaningStorage = false
+    @Published private(set) var quickCleanEstimate: UInt64?
+    @Published private(set) var quickCleanEstimateDate: Date?
+    @Published private(set) var isEstimatingQuickClean = false
     @Published private(set) var isQuickCleaning = false
     @Published private(set) var quickActionMessage: String?
     @Published private(set) var fullDiskAccessStatus = FullDiskAccessController.currentStatus()
@@ -67,6 +73,8 @@ final class AppModel: ObservableObject {
     let systemInfo = SystemInformation.current
     let updater = UpdateController()
     let diagnostics = DiagnosticsController()
+    let automaticCleanup = AutomaticCleanupController()
+    let uninstallWatcher = UninstallWatcherController()
 
     private var monitorTask: Task<Void, Never>?
     private var metricsRefreshTask: Task<Void, Never>?
@@ -142,7 +150,7 @@ final class AppModel: ObservableObject {
         let value = ApplicationPresentation(version: applicationPresentationVersion, search: applicationSearch, sort: applicationSort,
                                             ascending: applicationSortAscending, filter: applicationFilter, applications: sorted,
                                             total: ApplicationStorageUsage.combinedSize(sorted),
-                                            isComplete: sorted.allSatisfy { $0.storageUsage?.isComplete == true })
+                                            isComplete: sorted.allSatisfy { $0.isBundleSizeComplete && $0.storageUsage?.isComplete == true })
         cachedApplicationPresentation = value
         return value
     }
@@ -169,6 +177,10 @@ final class AppModel: ObservableObject {
         if !didStartServices {
             didStartServices = true
             DiagnosticLogger.shared.record(.appStarted)
+            uninstallWatcher.start()
+            automaticCleanup.start { [weak self] policy, lastRun in
+                await self?.performAutomaticCleanup(policy: policy, lastRun: lastRun)
+            }
         }
         updater.checkAutomaticallyIfNeeded()
     }
@@ -230,6 +242,9 @@ final class AppModel: ObservableObject {
         fans = await Task.detached(priority: .utility) {
             FanController.initialReadings(retry: isInitial)
         }.value
+        temperatures = await Task.detached(priority: .utility) {
+            TemperatureMonitor.sample(rediscover: isInitial)
+        }.value
         if isInitial {
             DiagnosticLogger.shared.record(.fanInitialRead, outcome: fans.isEmpty ? .unavailable : .success,
                                            metrics: [.count: Int64(fans.count), .zeroReadings: Int64(fans.filter { $0.currentRPM == 0 }.count)])
@@ -258,21 +273,86 @@ final class AppModel: ObservableObject {
     }
 
     func quickClean() async {
-        guard !isQuickCleaning, !isScanningStorage else { return }
+        guard !isQuickCleaning, !isScanningStorage, !isCleaningStorage, !isEstimatingQuickClean, !isUninstallingApplication else { return }
         isQuickCleaning = true
         isScanningStorage = true
         quickActionMessage = nil
         memoryOptimizer.dismissMessage()
+        let running = RunningApplicationNames.current()
         let categories = await Task.detached(priority: .utility) {
-            StorageCleaner.scan(mode: .standard)
+            StorageCleaner.scan(mode: .standard, runningApplications: running)
         }.value
         let quickCleanCategories = StorageCleaner.quickCleanCategories(from: categories)
+        let currentRunning = RunningApplicationNames.current()
         let result = await Task.detached(priority: .userInitiated) {
-            StorageCleaner.clean(quickCleanCategories)
+            StorageCleaner.clean(quickCleanCategories, runningApplications: currentRunning)
         }.value
         quickActionMessage = result
         isScanningStorage = false
         isQuickCleaning = false
+        quickCleanEstimate = nil
+        quickCleanEstimateDate = nil
+        await refreshQuickCleanEstimate(force: true)
+    }
+
+    func refreshQuickCleanEstimate(force: Bool = false) async {
+        guard !isEstimatingQuickClean, !isScanningStorage, !isCleaningStorage, !isQuickCleaning, !isUninstallingApplication else { return }
+        if !force, let date = quickCleanEstimateDate, Date().timeIntervalSince(date) < 300 { return }
+        isEstimatingQuickClean = true
+        defer { isEstimatingQuickClean = false }
+        let running = RunningApplicationNames.current()
+        let categories = await Task.detached(priority: .utility) {
+            StorageCleaner.scan(mode: .standard, runningApplications: running)
+        }.value
+        updateQuickCleanEstimate(categories)
+    }
+
+    private func updateQuickCleanEstimate(_ categories: [CleanupCategory]) {
+        quickCleanEstimate = StorageCleaner.quickCleanCategories(from: categories).reduce(0) { $0 + $1.selectedSize }
+        quickCleanEstimateDate = Date()
+    }
+
+    private func performAutomaticCleanup(policy: AutomaticCleanupPolicy, lastRun: Date) async -> String? {
+        guard !isScanningStorage, !isCleaningStorage, !isQuickCleaning, !isEstimatingQuickClean,
+              !isUninstallingApplication else { return nil }
+        isCleaningStorage = true
+        defer { isCleaningStorage = false }
+        let running = RunningApplicationNames.current(includeBackground: true)
+        let categories = await Task.detached(priority: .utility) {
+            StorageCleaner.automaticCacheScan(runningApplications: running)
+        }.value
+        guard automaticCleanup.policy == policy, !Task.isCancelled,
+              policy.shouldClean(bytes: categories.reduce(0) { $0 + $1.selectedSize }, lastRun: lastRun, now: Date()) else { return nil }
+        var outcome = StorageCleanupResult()
+        var attempted = false
+        for category in categories {
+            for item in category.items {
+                guard automaticCleanup.policy == policy, !Task.isCancelled else { break }
+                // Re-check foreground/background applications between items, not just before the scan.
+                var single = category; single.items = [item]; single.locations = [item.url]
+                let eligible = StorageCleaner.automaticCacheCategories(from: [single], runningApplications: RunningApplicationNames.current(includeBackground: true))
+                guard !eligible.isEmpty else { continue }
+                let running = RunningApplicationNames.current(includeBackground: true)
+                attempted = true
+                outcome.append(await Task.detached(priority: .utility) {
+                    StorageCleaner.cleanResult(eligible, runningApplications: running)
+                }.value)
+            }
+        }
+        quickCleanEstimate = nil; quickCleanEstimateDate = nil
+        return attempted ? outcome.message : nil
+    }
+
+    func beginExternalUninstall() -> Bool {
+        guard !isCleaningStorage, !isScanningStorage, !isQuickCleaning, !isEstimatingQuickClean, !isUninstallingApplication else { return false }
+        isCleaningStorage = true
+        return true
+    }
+
+    func finishExternalUninstall() {
+        isCleaningStorage = false
+        quickCleanEstimate = nil; quickCleanEstimateDate = nil
+        relatedScanCache.clear()
     }
 
     func dismissQuickActionMessage() {
@@ -355,6 +435,7 @@ final class AppModel: ObservableObject {
         applications = applications.map { app in
             guard let update = values[app.id] else { return app }
             var app = app; app.storageUsage = update.usage
+            if let size = update.bundleMeasurement { app.size = size.bytes; app.isBundleSizeComplete = size.isComplete }
             if let identity = update.identity { app.relatedIdentity = identity }
             return app
         }
@@ -462,15 +543,28 @@ final class AppModel: ObservableObject {
             return
         }
         isScanningRelatedFiles = true
-        let loader = relatedFileLoader
+        let loader = relatedFileLoader, cache = relatedScanCache
         let worker = Task.detached(priority: .userInitiated) {
-            loader(application)
+            var scan = loader(application)
+            if !application.isBundleSizeComplete, !Task.isCancelled {
+                let size = cache.cachedMeasurement(application.url)
+                    ?? ApplicationDataSize.measure(application.url, timeout: 0.06, maximumEntries: 1_500)
+                if !Task.isCancelled { cache.storeMeasurement(size, at: application.url) }
+                scan.bundleMeasurement = size
+            }
+            return scan
         }
         relatedFileWorker = worker
         let result = await worker.value
         guard relatedFileScanID == scanID else { return }
         relatedFileWorker = nil
         relatedDiscoveryScan = result
+        if let size = result.bundleMeasurement {
+            if let index = applications.firstIndex(where: { $0.id == application.id }) {
+                applications[index].size = size.bytes; applications[index].isBundleSizeComplete = size.isComplete
+            }
+            selectedApplication?.size = size.bytes; selectedApplication?.isBundleSizeComplete = size.isComplete
+        }
         relatedFiles = result.files
         applyStorageUsage(ApplicationStorageUsage(files: result.files, isComplete: result.accessMessage == nil), to: application.id, foreground: true, identity: result.identity)
         relatedFileScanMessage = result.accessMessage
@@ -511,7 +605,12 @@ final class AppModel: ObservableObject {
 
     func uninstallSelectedApplication() async {
         guard let selectedApplication, !isUninstallingApplication, !isScanningRelatedFiles else { return }
+        guard !isCleaningStorage, !isScanningStorage, !isQuickCleaning, !isEstimatingQuickClean, !isUninstallingApplication else {
+            presentUninstallResult(message: String(localized: "Another cleanup is in progress. Try again shortly."), isError: true, needsFinderPermission: false)
+            return
+        }
         uninstallNeedsFinderPermission = false
+        uninstallNeedsFullDiskAccess = false
         // Otherwise an app can recreate its container immediately after it was removed.
         uninstallRemainingItems = []
         if NSWorkspace.shared.runningApplications.contains(where: {
@@ -522,6 +621,7 @@ final class AppModel: ObservableObject {
                                    isError: true, needsFinderPermission: false)
             return
         }
+        uninstallWatcher.suppress(selectedApplication)
         isUninstallingApplication = true
         needsApplicationInventoryRefresh = true
         cancelApplicationWork()
@@ -530,18 +630,12 @@ final class AppModel: ObservableObject {
         relatedFileScanID = UUID()
         let previousRelated = relatedFiles
         let selectedRelated = relatedFiles.filter(\.isSelected)
-        let outcome = await Task.detached(priority: .userInitiated) {
-            ApplicationScanner.uninstall(application: selectedApplication, relatedFiles: selectedRelated)
-        }.value
-        var removed = outcome.trashed
-        var removalMessage: String?
-        var needsFinderPermission = false
-        if !outcome.failed.isEmpty {
-            let result = await SystemTrashService.trash(outcome.failed)
-            removed += result.moved
-            removalMessage = result.message
-            needsFinderPermission = result.needsFinderPermission
-        }
+        let targets = (ApplicationScanner.needsBundleRemoval(selectedApplication.url) ? [selectedApplication.url] : []) + selectedRelated.map(\.url)
+        let outcome = await SystemTrashService.remove(targets)
+        let removed = outcome.moved
+        var removalMessage = outcome.message
+        var needsFinderPermission = outcome.needsFinderPermission
+        let needsFullDiskAccess = outcome.needsFullDiskAccess
         // Keep the bundle identity even if its original URL has moved, so failures are retryable.
         let verification = await Task.detached(priority: .utility) {
             let scan = ApplicationScanner.relatedFileScan(for: selectedApplication, mode: .discovery)
@@ -558,8 +652,10 @@ final class AppModel: ObservableObject {
         relatedDiscoveryScan = verification.0
         relatedFileScanMessage = verification.0.accessMessage
         isScanningRelatedFiles = false
-        // The rescan clears the previous message; report this result afterwards so it stays visible.
-        await scanApplications()
+        // Only this app changed. Avoid rewalking/sizing every installed application
+        // before showing the result; an explicit Rescan still refreshes the inventory.
+        if !verification.2 { applications.removeAll { $0.id == selectedApplication.id } }
+        needsApplicationInventoryRefresh = false
         if let selected = self.selectedApplication {
             applyStorageUsage(ApplicationStorageUsage(files: verification.1, isComplete: !incomplete), to: selected.id, foreground: true)
         }
@@ -569,20 +665,21 @@ final class AppModel: ObservableObject {
         if !verification.1.isEmpty { messages.append(String(localized: "Remaining files are listed below. New discoveries are unchecked; review them before removal.")) }
         if incomplete { messages.append(verification.0.accessMessage!) }
         presentUninstallResult(message: messages.joined(separator: " · "), isError: failed > 0 || incomplete,
-                               needsFinderPermission: needsFinderPermission,
+                               needsFinderPermission: needsFinderPermission, needsFullDiskAccess: needsFullDiskAccess && failed > 0,
                                remainingItems: (verification.2 ? [selectedApplication.url] : []) + verification.1.filter(\.isSelected).map(\.url))
     }
 
     /// A single presentation path also lets layout tests exercise real failure UI without deleting files.
-    func presentUninstallResult(message: String, isError: Bool, needsFinderPermission: Bool, remainingItems: [URL] = []) {
+    func presentUninstallResult(message: String, isError: Bool, needsFinderPermission: Bool, needsFullDiskAccess: Bool = false, remainingItems: [URL] = []) {
         uninstallMessageIsError = isError
         uninstallNeedsFinderPermission = needsFinderPermission
+        uninstallNeedsFullDiskAccess = needsFullDiskAccess
         uninstallRemainingItems = remainingItems
         operationMessage = message
     }
 
     func scanStorage() async {
-        guard !isScanningStorage else { return }
+        guard !isScanningStorage, !isCleaningStorage, !isEstimatingQuickClean else { return }
         isScanningStorage = true
         let started = Date()
         operationMessage = nil
@@ -599,6 +696,7 @@ final class AppModel: ObservableObject {
             isScanningStorage = false
             return
         }
+        updateQuickCleanEstimate(result)
         for index in result.indices {
             let categorySelected = result[index].accessMessage == nil && (previousSelection[result[index].kind] ?? result[index].isSelected)
             for itemIndex in result[index].items.indices {
@@ -618,7 +716,7 @@ final class AppModel: ObservableObject {
     }
 
     func setCleanupScanMode(_ mode: CleanupScanMode) async {
-        guard mode != cleanupScanMode, !isScanningStorage else { return }
+        guard mode != cleanupScanMode, !isScanningStorage, !isCleaningStorage, !isEstimatingQuickClean else { return }
         cleanupScanMode = mode
         cleanupCategories = CleanupKind.kinds(for: mode).map {
             CleanupCategory(
@@ -656,8 +754,10 @@ final class AppModel: ObservableObject {
     }
 
     func cleanSelectedCategories() async {
+        guard !isCleaningStorage, !isScanningStorage, !isQuickCleaning, !isEstimatingQuickClean, !isUninstallingApplication else { return }
+        isCleaningStorage = true
         let selected = cleanupCategories.filter(\.isSelected)
-        guard !selected.isEmpty else { return }
+        guard !selected.isEmpty else { isCleaningStorage = false; return }
         let regular = selected.filter { $0.kind != .systemCaches }
         let running = RunningApplicationNames.current()
         var messages: [String] = []
@@ -670,6 +770,7 @@ final class AppModel: ObservableObject {
         if selected.contains(where: { $0.kind == .systemCaches }) {
             messages.append(MaintenanceController.cleanSystemCaches())
         }
+        isCleaningStorage = false
         await scanStorage()
         operationMessage = messages.joined(separator: "；")
     }
@@ -678,6 +779,7 @@ final class AppModel: ObservableObject {
         operationMessage = nil
         uninstallMessageIsError = false
         uninstallNeedsFinderPermission = false
+        uninstallNeedsFullDiskAccess = false
         uninstallRemainingItems = []
     }
 }
