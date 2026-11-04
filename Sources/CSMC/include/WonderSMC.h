@@ -1,6 +1,8 @@
 #ifndef WONDER_SMC_H
 #define WONDER_SMC_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,6 +21,25 @@ typedef struct {
 
 /* Read-only CPU/GPU sensors. Keys are rediscovered on request, not on every sample. */
 int wc_smc_read_temperatures(WCTemperatureReading *readings, int capacity, int rediscover);
+
+/* Read-only, explicitly selected power keys. Unsupported types return NaN. */
+double wc_smc_decode_power(const char type[5], const uint8_t *bytes, int size);
+typedef struct {
+    char key[5];
+    double watts;
+} WCPowerReading;
+int wc_smc_read_power(WCPowerReading *readings, int capacity);
+
+/* Optional IOReport energy counters. Each reader is owned by one serial sampler. */
+typedef struct WCEnergyReader WCEnergyReader;
+typedef struct {
+    char channel[32];
+    char unit[8];
+    int64_t energy;
+} WCEnergyReading;
+WCEnergyReader *wc_energy_create(void);
+void wc_energy_destroy(WCEnergyReader *reader);
+int wc_energy_sample(WCEnergyReader *reader, WCEnergyReading *readings, int capacity, double *elapsed);
 
 int wc_smc_is_available(void);
 int wc_smc_fan_count(void);

@@ -6,6 +6,7 @@ enum AppSection: String, CaseIterable, Identifiable {
     case memory
     case cpu
     case gpu
+    case power
     case fan
     case awake
     case applications
@@ -21,6 +22,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .memory: String(localized: "Memory")
         case .cpu: "CPU"
         case .gpu: "GPU"
+        case .power: String(localized: "Power")
         case .fan: String(localized: "Fan")
         case .awake: String(localized: "Keep Awake")
         case .applications: String(localized: "Uninstaller")
@@ -36,6 +38,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .memory: "memorychip"
         case .cpu: "cpu"
         case .gpu: "cube.transparent"
+        case .power: "bolt.fill"
         case .fan: "fan"
         case .awake: "moon.zzz"
         case .applications: "shippingbox"
@@ -51,6 +54,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .memory: Color(hex: 0xD4568F)
         case .cpu: Color(hex: 0x3178F6)
         case .gpu: Color(hex: 0x7A67D8)
+        case .power: Color(hex: 0xD08022)
         case .fan: Color(hex: 0x13A58D)
         case .awake: Color(hex: 0xF18B43)
         case .applications: Color(hex: 0x7A67D8)

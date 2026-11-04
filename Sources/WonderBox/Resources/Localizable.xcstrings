@@ -94,6 +94,16 @@
         }
       }
     },
+    "%@: %lld RPM": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@：%lld RPM"
+          }
+        }
+      }
+    },
     "%@; %@": {
       "localizations": {
         "zh-Hans": {
@@ -332,12 +342,42 @@
         }
       }
     },
+    "1 hour": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 小时"
+          }
+        }
+      }
+    },
+    "1 minute": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 分钟"
+          }
+        }
+      }
+    },
     "100% means one fully occupied CPU core; multi-core apps can exceed 100%.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "100% 表示占满一个 CPU 核心；多核应用的占用率可超过 100%。"
+          }
+        }
+      }
+    },
+    "15 minutes": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "15 分钟"
           }
         }
       }
@@ -889,6 +929,16 @@
         }
       }
     },
+    "Average Power": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平均功耗"
+          }
+        }
+      }
+    },
     "Back to the previous folder": {
       "localizations": {
         "zh-Hans": {
@@ -1056,6 +1106,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "CPU 温度"
+          }
+        }
+      }
+    },
+    "CPU package; may include integrated GPU": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU 封装功耗，可能包含集成 GPU"
+          }
+        }
+      }
+    },
+    "CPU/GPU power uses macOS energy counters where available; system power uses the SMC system sensor. These are hardware-reported or model-based readings, not wall-outlet measurements. Components may overlap and must not be added together.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU/GPU 优先使用 macOS 能量计数器，整机功耗使用 SMC 整机传感器。读数来自硬件或系统能量模型，并非插座电表测量值。各分项可能重叠，请勿相加。"
           }
         }
       }
@@ -2178,6 +2248,16 @@
         }
       }
     },
+    "Fan Power": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "风扇功耗"
+          }
+        }
+      }
+    },
     "Fan Speed": {
       "localizations": {
         "zh-Hans": {
@@ -2516,6 +2596,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "显示可用传感器中的最高温度；未读取到温度时显示横线"
+          }
+        }
+      }
+    },
+    "History stays in memory for up to one hour while live monitoring runs, including on other tabs. Sleep, paused monitoring and missing sensors leave gaps; quitting clears history.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时监测期间保留最近一小时的内存历史，切换其他页面仍继续采样。睡眠、暂停监测和传感器缺失会留下空白；退出应用会清空历史。"
           }
         }
       }
@@ -2940,6 +3030,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "实时监测"
+          }
+        }
+      }
+    },
+    "Live power and recent history, in watts": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时功耗与近期曲线，单位为瓦特"
           }
         }
       }
@@ -3417,12 +3517,32 @@
         }
       }
     },
+    "No current reading": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无当前读数"
+          }
+        }
+      }
+    },
     "No items found": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "未找到项目"
+          }
+        }
+      }
+    },
+    "No power samples in this time range": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选时间范围内暂无功耗采样"
           }
         }
       }
@@ -3463,6 +3583,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "未找到关联文件。可以关闭此窗口，或授予完全磁盘访问权限后重新扫描。"
+          }
+        }
+      }
+    },
+    "No supported fan watt sensor; RPM is not watts.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚无受支持的风扇功耗传感器；转速不等于瓦数。"
           }
         }
       }
@@ -3849,6 +3979,16 @@
         }
       }
     },
+    "Peak Power": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "峰值功耗"
+          }
+        }
+      }
+    },
     "Performance": {
       "localizations": {
         "zh-Hans": {
@@ -3895,6 +4035,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "插件"
+          }
+        }
+      }
+    },
+    "Power": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功耗"
+          }
+        }
+      }
+    },
+    "Power Component": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功耗分项"
+          }
+        }
+      }
+    },
+    "Power sensors are unavailable on this Mac or in this app sandbox. Missing readings are shown as —, not zero.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前 Mac 或应用沙盒未开放功耗传感器。缺失读数显示为 —，而不是零。"
           }
         }
       }
@@ -5022,6 +5192,16 @@
         }
       }
     },
+    "Statistics cover observed intervals only. Gaps and changes of data source are not connected.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "统计仅包含实际采样区间。数据缺口和数据源变化处不连接曲线。"
+          }
+        }
+      }
+    },
     "Status Unknown": {
       "localizations": {
         "zh-Hans": {
@@ -5118,6 +5298,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "系统缓存"
+          }
+        }
+      }
+    },
+    "System Power": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "整机功耗"
           }
         }
       }
@@ -5523,6 +5713,16 @@
         }
       }
     },
+    "Time Range": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时间范围"
+          }
+        }
+      }
+    },
     "Time interval": {
       "localizations": {
         "zh-Hans": {
@@ -5904,6 +6104,16 @@
         }
       }
     },
+    "Waiting for power samples…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在等待功耗采样…"
+          }
+        }
+      }
+    },
     "Waiting for the next sample": {
       "localizations": {
         "zh-Hans": {
@@ -5940,6 +6150,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "监听 /Applications 和 ~/Applications。应用被删除或移入废纸篓后，询问是否清理关联文件。这是可选的独立登录项，退出 WonderBox 后仍可运行；确认前不会移除任何文件。"
+          }
+        }
+      }
+    },
+    "Watts": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "瓦特"
           }
         }
       }

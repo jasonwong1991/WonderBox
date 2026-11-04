@@ -190,7 +190,7 @@ final class RefreshAndHistoryTests: XCTestCase {
 
     func testEveryScreenRegistersAnActionAndBothGlobalButtonsUseTheRouter() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let screens = ["OverviewView", "MemoryView", "ProcessorView", "FanView", "AwakeView", "ApplicationsView", "CleanerView", "DiskAnalyzerView", "SettingsView"]
+        let screens = ["OverviewView", "MemoryView", "ProcessorView", "PowerView", "FanView", "AwakeView", "ApplicationsView", "CleanerView", "DiskAnalyzerView", "SettingsView"]
         for screen in screens {
             let source = try String(contentsOf: root.appendingPathComponent("Sources/WonderBox/Views/\(screen).swift"), encoding: .utf8)
             XCTAssertTrue(source.contains(".sectionRefresh("), screen)
