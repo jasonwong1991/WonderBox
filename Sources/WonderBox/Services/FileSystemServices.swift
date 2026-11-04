@@ -849,7 +849,7 @@ enum StorageCleaner {
         }
     }
 
-    private static func installerFiles(in directory: URL) -> [URL] {
+    static func installerFiles(in directory: URL) -> [URL] {
         let output = CommandRunner.output(
             of: "/usr/bin/find",
             arguments: [
@@ -882,10 +882,20 @@ enum StorageCleaner {
 
     static func archiveEntriesContainInstaller<S: StringProtocol>(_ entries: [S]) -> Bool {
         entries.contains { entry in
-            entry.split(separator: "/").contains { component in
-                let lowercased = component.lowercased()
-                return lowercased.hasSuffix(".app") || lowercased.hasSuffix(".pkg") || lowercased.hasSuffix(".mpkg") || lowercased.hasSuffix(".dmg")
+            let components = entry.split(separator: "/").map { $0.lowercased() }
+            guard let filename = components.last, !entry.hasSuffix("/"),
+                  !components.contains("__macosx"), !filename.hasPrefix("._") else { return false }
+
+            // A package or disk image must be a file, not an ancestor directory's suffix.
+            if filename.hasSuffix(".pkg") || filename.hasSuffix(".mpkg") || filename.hasSuffix(".dmg") {
+                return true
             }
+
+            // Apps and legacy bundle packages need their standard bundle metadata.
+            guard components.count >= 3, filename == "info.plist",
+                  components[components.count - 2] == "contents" else { return false }
+            let bundle = components[components.count - 3]
+            return bundle.hasSuffix(".app") || bundle.hasSuffix(".pkg") || bundle.hasSuffix(".mpkg")
         }
     }
 }
