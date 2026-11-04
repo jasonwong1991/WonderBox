@@ -21,6 +21,14 @@
   English · <a href="README.zh-CN.md">简体中文</a>
 </p>
 
+## Power monitoring (unreleased, main branch)
+
+- A dedicated **Power** page shows current system, CPU and GPU watts, plus selectable **1-minute / 15-minute / 1-hour** charts with observed-interval averages and peaks.
+- Apple Silicon uses optional, dynamically loaded IOReport energy counters divided by the actual sample interval. SMC provides system power and supported Intel/component fallbacks. These are hardware/model readings, not wall-outlet measurements; CPU-package readings may include the integrated GPU. Values from overlapping sensors are never added to system power.
+- **Fan watts remain unavailable** where no supported sensor exists. Fan RPM is shown separately and is never converted into invented wattage. Other unavailable/stale values show `—`, not zero.
+- Sampling follows the existing live-monitoring lifecycle, approximately every 3 seconds, including while other tabs are selected. Up to one hour stays in memory; sleep/paused monitoring leaves gaps, and quitting clears it. No administrator prompt, new helper, disk history or telemetry is involved.
+- Sensor availability varies by hardware/macOS; sandboxed builds leave these private-API readings unavailable. This feature is not yet included in the v1.0.1 download below.
+
 ## 1.0 Stable Release
 
 Current version: **1.0.1**, build **101**. [Download](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.0.1) · [Release notes](docs/releases/v1.0.1.md).

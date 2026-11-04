@@ -69,6 +69,7 @@ final class AppModel: ObservableObject {
     let sleepPreventer = SleepPreventer()
     let memoryOptimizer = MemoryOptimizer()
     let processorMonitor = ProcessorMonitor()
+    let powerMonitor = PowerMonitor()
     let sectionRefresh = SectionRefreshController()
     let systemInfo = SystemInformation.current
     let updater = UpdateController()
@@ -192,6 +193,8 @@ final class AppModel: ObservableObject {
             guard let self else { return }
             while !Task.isCancelled {
                 await self.refreshMetrics()
+                guard !Task.isCancelled else { break }
+                await self.powerMonitor.refresh()
                 switch self.selection {
                 case .fan: await self.refreshFans()
                 case .memory: await self.memoryOptimizer.refreshApplications()
@@ -204,6 +207,7 @@ final class AppModel: ObservableObject {
     }
 
     func stopMonitoring() {
+        if isMonitoring { powerMonitor.pause() }
         monitorTask?.cancel()
         monitorTask = nil
         isMonitoring = false

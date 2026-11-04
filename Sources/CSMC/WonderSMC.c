@@ -599,3 +599,41 @@ int wc_smc_read_temperatures(WCTemperatureReading *readings, int capacity, int r
     pthread_mutex_unlock(&temperature_lock);
     return found;
 }
+
+// Keep power decoding strict and separate from the legacy fan numeric fallback.
+double wc_smc_decode_power(const char type[5], const uint8_t *bytes, int size) {
+    if (!type || !bytes) return NAN;
+    if (memcmp(type, "flt ", 4) == 0 && size == 4) {
+        float value;
+        memcpy(&value, bytes, sizeof(value));
+        return isfinite(value) && value >= 0 ? value : NAN;
+    }
+    if (size != 2 || type[1] != 'p' || (type[0] != 's' && type[0] != 'f')) return NAN;
+    const char *digits = "0123456789abcdef";
+    const char *integer = type[2] ? strchr(digits, type[2]) : NULL;
+    const char *fraction = type[3] ? strchr(digits, type[3]) : NULL;
+    if (!integer || !fraction || (integer - digits) + (fraction - digits) != (type[0] == 's' ? 15 : 16)) return NAN;
+    uint16_t raw = ((uint16_t)bytes[0] << 8) | bytes[1];
+    double value = type[0] == 's' ? (double)(int16_t)raw : (double)raw;
+    return value < 0 ? NAN : ldexp(value, -(int)(fraction - digits));
+}
+
+int wc_smc_read_power(WCPowerReading *readings, int capacity) {
+    if (!readings || capacity <= 0) return 0;
+    // A rail, limit, adapter input or battery charge rate is NOT system/CPU power.
+    static const char *keys[] = {"PSTR", "PCTR", "PCPC", "PCPT", "PCPR", "PG0R", "PG1R", "PCGC", "PCPG"};
+    io_connect_t connection = IO_OBJECT_NULL;
+    if (smc_open(&connection) != kIOReturnSuccess) return 0;
+    int found = 0;
+    for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]) && found < capacity; i++) {
+        SMCValue value;
+        if (smc_read(connection, keys[i], &value) != kIOReturnSuccess) continue;
+        char type[5] = {(char)(value.type >> 24), (char)(value.type >> 16), (char)(value.type >> 8), (char)value.type, 0};
+        double watts = wc_smc_decode_power(type, value.bytes, (int)value.size);
+        if (!isfinite(watts) || watts > 2000) continue;
+        memcpy(readings[found].key, keys[i], 5);
+        readings[found++].watts = watts;
+    }
+    IOServiceClose(connection);
+    return found;
+}

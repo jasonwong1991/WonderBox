@@ -114,6 +114,7 @@ struct RootView: View {
         case .memory: MemoryView()
         case .cpu: ProcessorView(kind: .cpu)
         case .gpu: ProcessorView(kind: .gpu)
+        case .power: PowerView()
         case .fan: FanView()
         case .awake: AwakeView()
         case .applications: ApplicationsView()
