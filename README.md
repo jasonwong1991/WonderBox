@@ -21,17 +21,23 @@
   English · <a href="README.zh-CN.md">简体中文</a>
 </p>
 
-## Power monitoring (unreleased, main branch)
+## 1.1 Stable Release
+
+Current version: **1.1.0**, build **110**. [Download](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.1.0) · [Release notes](docs/releases/v1.1.0.md).
+
+### Power monitoring
 
 - A dedicated **Power** page shows current system, CPU and GPU watts, plus selectable **1-minute / 15-minute / 1-hour** charts with observed-interval averages and peaks.
 - Apple Silicon uses optional, dynamically loaded IOReport energy counters divided by the actual sample interval. SMC provides system power and supported Intel/component fallbacks. These are hardware/model readings, not wall-outlet measurements; CPU-package readings may include the integrated GPU. Values from overlapping sensors are never added to system power.
 - **Fan watts remain unavailable** where no supported sensor exists. Fan RPM is shown separately and is never converted into invented wattage. Other unavailable/stale values show `—`, not zero.
 - Sampling follows the existing live-monitoring lifecycle, approximately every 3 seconds, including while other tabs are selected. Up to one hour stays in memory; sleep/paused monitoring leaves gaps, and quitting clears it. No administrator prompt, new helper, disk history or telemetry is involved.
-- Sensor availability varies by hardware/macOS; sandboxed builds leave these private-API readings unavailable. This feature is not yet included in the v1.0.1 download below.
+- Sensor availability varies by hardware/macOS; sandboxed builds leave these private-API readings unavailable.
 
-## 1.0 Stable Release
+### Installer ZIP detection
 
-Current version: **1.0.1**, build **101**. [Download](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.0.1) · [Release notes](docs/releases/v1.0.1.md).
+Ordinary project/photo ZIPs are no longer classified as installers merely because a parent directory ends in `.app`, `.pkg`, `.mpkg` or `.dmg`. Detection now requires an installer file or standard bundle metadata, and ignores Finder metadata. This closes a remaining edge case in the earlier 0.3.0 fix.
+
+## 1.0 feature highlights
 
 - **Core temperatures:** the Fan page shows CPU/GPU temperature summaries and individual available sensors. Recognized Intel core keys get core numbers; Apple Silicon and unknown mappings retain their sensor keys. Missing physical cores are never filled with estimated or duplicate temperatures.
 - **Optional uninstall watcher:** offered on first launch and installable/removable in Settings. A separate macOS login item watches `/Applications` and `~/Applications`, even after WonderBox quits. Deleting an app or moving it to the Trash in Finder opens a related-file review; files only move to the Trash after explicit confirmation.

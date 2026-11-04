@@ -85,7 +85,7 @@ Automated tests cover tracker debouncing/moves/duplicates, queue persistence, sc
 
 Verify Select All / Deselect All in both views, including while sizes are being filled in. Exercise an ordinary user-owned disposable Cookie file through the direct Trash stage and a denied Cookie fixture: Finder should not be invoked for the latter, other selected items should proceed, and Full Disk Access guidance must identify the current app copy. Do not assume administrator authentication grants TCC access or test by deleting real browser cookies. A permission-denied exact-name probe is not evidence of a file and must not appear as a removable item. Confirm that Restart Plugin preserves queued reviews and starts the updated embedded binary.
 
-## Power monitoring acceptance (unreleased)
+## Power monitoring acceptance (1.1.0)
 
 The Power page reads no new privileged service. Apple Silicon energy counters use a dynamically resolved `libIOReport` subscription; missing symbols/channels degrade to SMC or unavailable readings. Only aggregate CPU/GPU energy channels are used, with explicit J/mJ/uJ/nJ conversion and actual monotonic sample intervals. SMC system power uses PSTR; adapter input/battery charging and unknown power rails are not substituted. Supported Intel fixed-point types are decoded explicitly; CPU-package fallbacks are labeled and never added to GPU/system power. No supported independent fan watt sensor is assumed: RPM is a separate measurement.
 
