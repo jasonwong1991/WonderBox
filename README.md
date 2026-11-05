@@ -21,9 +21,16 @@
   English · <a href="README.zh-CN.md">简体中文</a>
 </p>
 
-## 1.1 Stable Release
+## 1.2 Stable Release
 
-Current version: **1.1.0**, build **110**. [Download](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.1.0) · [Release notes](docs/releases/v1.1.0.md).
+Current version: **1.2.0**, build **120**. [Download](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.0) · [Release notes](docs/releases/v1.2.0.md).
+
+### Menu bar CPU and RAM
+
+- Under **Settings → Always Available**, enable **Show CPU usage in menu bar** and/or **Show memory usage in menu bar** to see a compact label such as `CPU 12% · RAM 64%` directly in the macOS menu bar.
+- Both values are independently switchable and off by default to preserve the existing icon-only appearance. Changes apply immediately and persist after relaunch; hiding the menu bar shortcut preserves the choices.
+- Values refresh approximately every 3 seconds even with the main window closed. The opt-in sampler reads only CPU/memory counters, without keeping disk, GPU, power or per-app scans running. Turning both values off or hiding the shortcut stops that sampler.
+- CPU is overall processor usage (0–100%); RAM uses the same App + Wired + Compressed memory fraction as the existing panel. Startup/wake CPU sampling waits for a baseline and shows `—` instead of a fabricated zero. Existing color/monochrome icon choices and the click-to-open panel are preserved.
 
 ### Power monitoring
 

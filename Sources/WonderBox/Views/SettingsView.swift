@@ -100,6 +100,10 @@ struct SettingsView: View {
 
                         Divider()
 
+                        MenuBarMetricSettings(isEnabled: showMenuBar)
+
+                        Divider()
+
                         Toggle(isOn: $confirmQuitOnClose) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Ask before quitting")

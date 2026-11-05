@@ -1110,6 +1110,16 @@
         }
       }
     },
+    "CPU and RAM percentages refresh every 3 seconds, even with the main window closed. Turn off either value to save menu bar space.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU 和内存占用每 3 秒刷新，关闭主窗口后仍会更新。可分别关闭任一项以节省菜单栏空间。"
+          }
+        }
+      }
+    },
     "CPU package; may include integrated GPU": {
       "localizations": {
         "zh-Hans": {
@@ -4849,6 +4859,16 @@
       },
       "extractionState": "stale"
     },
+    "Show CPU usage in menu bar": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在菜单栏显示 CPU 占用"
+          }
+        }
+      }
+    },
     "Show Remaining Items in Finder": {
       "localizations": {
         "zh-Hans": {
@@ -4936,6 +4956,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "常驻菜单栏"
+          }
+        }
+      }
+    },
+    "Show memory usage in menu bar": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在菜单栏显示内存占用"
           }
         }
       }

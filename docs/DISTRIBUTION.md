@@ -7,6 +7,7 @@ Reference policy: [App Review Guidelines](https://developer.apple.com/app-store/
 | Capability | API | App Store | Direct |
 | --- | --- | --- | --- |
 | CPU and memory status | Mach host statistics | Yes | Yes |
+| Optional menu-bar CPU/RAM percentages | Read-only Mach counters; app-owned 3-second sampler | Yes | Yes |
 | Memory categories, swap, pressure level | Mach host statistics, `sysctl` | Yes | Yes |
 | Per-app memory ranking | `libproc` rusage, `NSRunningApplication` | Sandbox-limited | Yes |
 | Memory-pressure broadcast and file-cache purge | Fixed-command helper daemon (`memory_pressure -S`, `purge`) | No | Yes |
@@ -92,3 +93,9 @@ The Power page reads no new privileged service. Apple Silicon energy counters us
 History is an in-memory, bounded one-hour window, sampled only during the existing live-monitoring lifecycle. Gaps, invalid counters and changes of source break chart segments. Sandboxed builds return unavailable without opening IOReport or SMC. Private interfaces are not App Store APIs merely because they are dynamically loaded; remove/exclude the private implementations for a Store distribution.
 
 Before release, compare system/CPU/GPU readings on Intel and Apple Silicon across macOS 14 and current macOS, test sleep/wake and repeated manual refreshes, and inspect English/Chinese layouts in light/dark mode. Check an unsupported/sandboxed host: missing watts must stay unavailable, not zero. Unit fixtures cover units, fixed-point formats, aliases/overlap, invalid readings, missing data, bounded history, source changes, coalescing/cancellation and chart layout; the read-only host smoke test does not prove cross-hardware coverage.
+
+## Menu-bar metrics acceptance (1.2.0)
+
+The optional status-item sampler belongs to the App, not the main-window scene or popup. Both CPU and RAM displays default off and are independently persisted. Scene-level preference changes start/stop the sampler, including removal of the status item; hiding it preserves the saved choices. Sleep clears the current values, and wake establishes a fresh CPU baseline. This does not enable launch at login, install a helper or keep the existing disk/GPU/power/process monitors running in the background.
+
+CPU uses aggregate host tick deltas; RAM reuses the existing App + Wired + Compressed calculation. Unavailable/invalid counters show a dash. Test all four display combinations, preference persistence, hidden/restored status items, color/template icons, main-window closing, sleep/wake and the existing click-to-open popup. Native MenuBarExtra fixture validation on macOS 26.5.2 covers live label updates, both icon styles and closed-window sampling; unit tests also exercise the production Mach reader. Intel/macOS 14 runtime coverage remains a separate compatibility check.

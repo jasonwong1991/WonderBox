@@ -4,11 +4,14 @@ import SwiftUI
 @main
 struct WonderBoxApplication: App {
     @StateObject private var model = AppModel()
+    @StateObject private var menuBarMetrics = MenuBarMetricMonitor()
     @NSApplicationDelegateAdaptor(DockPresenceController.self) private var dockPresence
     @AppStorage("appearance") private var appearance = AppAppearance.system.rawValue
     @AppStorage("accent") private var accent = AccentChoice.ocean.rawValue
     @AppStorage("showMenuBar") private var showMenuBar = true
     @AppStorage(MenuBarIconStyle.storageKey) private var menuBarIconStyle = MenuBarIconStyle.defaultStyle
+    @AppStorage(MenuBarMetricOptions.cpuKey) private var menuBarShowCPU = false
+    @AppStorage(MenuBarMetricOptions.memoryKey) private var menuBarShowMemory = false
     @AppStorage("awakeDuration") private var awakeDuration = AwakeDuration.oneHour.rawValue
     @AppStorage("keepDisplayAwake") private var keepDisplayAwake = false
     @Environment(\.scenePhase) private var scenePhase
@@ -24,6 +27,10 @@ struct WonderBoxApplication: App {
 
     private var selectedAwakeDuration: AwakeDuration {
         AwakeDuration(rawValue: awakeDuration) ?? .oneHour
+    }
+
+    private var menuBarMetricOptions: MenuBarMetricOptions {
+        MenuBarMetricOptions(menuBarVisible: showMenuBar, showCPU: menuBarShowCPU, showMemory: menuBarShowMemory)
     }
 
     var body: some Scene {
@@ -91,10 +98,12 @@ struct WonderBoxApplication: App {
                 .environmentObject(dockPresence)
                 .preferredColorScheme(selectedAppearance.colorScheme)
         } label: {
-            Image(nsImage: MenuBarAppIcon.image(for: menuBarIconStyle))
-                .accessibilityLabel("WonderBox")
+            MenuBarMetricLabel(style: menuBarIconStyle, options: menuBarMetricOptions, snapshot: menuBarMetrics.snapshot)
         }
         .menuBarExtraStyle(.window)
+        .onChange(of: menuBarMetricOptions, initial: true) { _, options in
+            menuBarMetrics.configure(options)
+        }
     }
 }
 

@@ -49,7 +49,7 @@ struct SystemSample: Sendable {
 
 enum SystemMonitor {
     static func sample(previous: SystemCounters?) -> SystemSample {
-        let cpu = cpuTicks()
+        let cpu = cpuTicks() ?? (total: 0, idle: 0)
         let network = networkBytes()
         let now = Date()
         let counters = SystemCounters(
@@ -113,7 +113,7 @@ enum SystemMonitor {
         return current - previous
     }
 
-    private static func cpuTicks() -> (total: UInt64, idle: UInt64) {
+    static func cpuTicks() -> (total: UInt64, idle: UInt64)? {
         var info = host_cpu_load_info_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<host_cpu_load_info_data_t>.size / MemoryLayout<integer_t>.size)
         let result = withUnsafeMutablePointer(to: &info) {
@@ -121,7 +121,7 @@ enum SystemMonitor {
                 host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, $0, &count)
             }
         }
-        guard result == KERN_SUCCESS else { return (0, 0) }
+        guard result == KERN_SUCCESS else { return nil }
         let user = UInt64(info.cpu_ticks.0)
         let system = UInt64(info.cpu_ticks.1)
         let idle = UInt64(info.cpu_ticks.2)
@@ -153,6 +153,10 @@ enum SystemMonitor {
     }
 
     static func memoryBreakdown() -> MemoryBreakdown {
+        memoryBreakdownReading() ?? MemoryBreakdown(swapUsed: swapUsage(), pressure: pressureLevel())
+    }
+
+    static func memoryBreakdownReading() -> MemoryBreakdown? {
         var breakdown = MemoryBreakdown(swapUsed: swapUsage(), pressure: pressureLevel())
         var info = vm_statistics64_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64_data_t>.size / MemoryLayout<integer_t>.size)
@@ -161,9 +165,9 @@ enum SystemMonitor {
                 host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count)
             }
         }
-        guard result == KERN_SUCCESS else { return breakdown }
+        guard result == KERN_SUCCESS else { return nil }
         var pageSize: vm_size_t = 0
-        host_page_size(mach_host_self(), &pageSize)
+        guard host_page_size(mach_host_self(), &pageSize) == KERN_SUCCESS, pageSize > 0 else { return nil }
         let page = UInt64(pageSize)
         // Match Activity Monitor: App Memory = anonymous pages minus purgeable pages.
         let internalPages = UInt64(info.internal_page_count)
