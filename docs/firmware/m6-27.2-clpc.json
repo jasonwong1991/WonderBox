@@ -1,0 +1,75 @@
+{
+  "macos": "27.2",
+  "build": "26B123",
+  "ipsw_url": "https://updates.cdn-apple.com/2026FallFCS/c9671975-52db-4fb5-9af2-00217169ba8d/UniversalMac_27.2_26B123_Restore.ipsw",
+  "manifest_sha256": "0fbfae04175cde81ef36d273aa280d39ffe5a54eacba8494b45a59daca462510",
+  "member": "kernelcache.release.mac18g",
+  "kernelcache_sha256": "836faa87190de27de15044f574fab0023dbd83ad56813935d2a68e17da873f5a",
+  "scope": "Static identities from Apple firmware; runtime permissions and measured values need device verification.",
+  "driver": {
+    "bundle": "com.apple.driver.AppleT8152CLPC",
+    "uuid": "705fc1e3-6778-3cc9-832d-132bc25e1ddb",
+    "status": "identified",
+    "segments": {
+      "__TEXT": {
+        "address": "0xfffffe0007763a10",
+        "virtual_size": 22271,
+        "size": 22271,
+        "sha256": "4329922802cf281ed9ae1031182e996da6395b3624e01b60ac35a4867004300f"
+      },
+      "__TEXT_EXEC": {
+        "address": "0xfffffe0009fa9440",
+        "virtual_size": 443572,
+        "size": 443572,
+        "sha256": "cad7e7254dddb91ea618021a8bab50d4104bd88569c07e2efa92a555fc6ef9c6"
+      },
+      "__DATA": {
+        "address": "0xfffffe000ccfb080",
+        "virtual_size": 128808,
+        "size": 65536,
+        "sha256": "5255e04c18f87b492c67c7f76f82cf5188b93ce3d09b7bb263e1898da5acd379"
+      },
+      "__DATA_CONST": {
+        "address": "0xfffffe0008369d30",
+        "virtual_size": 33624,
+        "size": 33624,
+        "sha256": "ddfd17f20a52124b45828336a8237ee428bd9b9c3e7f0e074be94b7f30fc9715"
+      }
+    },
+    "cpu": {
+      "id": "0x00000010485d4bfc",
+      "name": "13f0aef96d1e94d1d298",
+      "storage": "0xfffffe000cd12f30",
+      "reports_offset": "0x3c0",
+      "configure": "__ZN4clpc21configureSimpleReportIyEENS_6report11ChannelTypeEyytbPv+0x0",
+      "generate": "__ZN4clpc20generateSimpleReportIyEEvRiR24IOBufferMemoryDescriptoryytPv+0x0",
+      "writer": "0xfffffe0009fb8cec",
+      "dependencies": [
+        "CPU"
+      ],
+      "evidence": [
+        "0xfffffe0009fb8ccc add x8, x9, x8",
+        "0xfffffe0009fb8cd0 str x8, [x23, #0x208]",
+        "0xfffffe0009fb8cd4 ldr s0, [x28, #0x2b8]",
+        "0xfffffe0009fb8cd8 fmul s0, s0, s8",
+        "0xfffffe0009fb8cdc bl #0xfffffe000a015744",
+        "0xfffffe0009fb8ce0 fcvtzu x8, s0",
+        "0xfffffe0009fb8ce4 ldr x9, [x23, #0x3c0]",
+        "0xfffffe0009fb8ce8 add x8, x9, x8",
+        "0xfffffe0009fb8cec str x8, [x23, #0x3c0]"
+      ],
+      "identification": "automated dependency trace"
+    }
+  },
+  "discovery": {
+    "upstream": "https://github.com/vladkens/macmon/blob/main/docs/clpc-discovery.md",
+    "tool": "macmon scripts/clpc_binary.py with Xcode nm",
+    "scripts": {
+      "clpc.py": "1b9964f37c54f92110a02ad4d2860754541e78258d9e99fb776c81d4228fe77f",
+      "clpc_binary.py": "c02d22617236419337aa7b0bed4991ce00a28cadf6e5abedff42ab92591886c5",
+      "scan_m6.py": "696020c675e96ee31fd42978e907a8562b272e45bd22443eb94bf309d9218423"
+    },
+    "note": "Only the M6 kernel cache selected by manifest ApChipID=0x8152 was analyzed. Addresses below identify static producer instructions, not runtime sampler inputs.",
+    "upstream_commit": "39e98aa73e49256e6281b2a228f6ef3499ae3209"
+  }
+}

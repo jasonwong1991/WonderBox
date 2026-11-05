@@ -1,9 +1,11 @@
 #include "WonderSMC.h"
 #include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/IOKitLib.h>
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/sysctl.h>
 
 static int has_suffix(const char *text, const char *suffix) {
     size_t length = strlen(text), suffix_length = strlen(suffix);
@@ -22,8 +24,77 @@ struct WCEnergyReader {
     CFDictionaryRef (*delta)(CFDictionaryRef, CFDictionaryRef, CFTypeRef);
     CFStringRef (*name)(CFDictionaryRef);
     CFStringRef (*unit)(CFDictionaryRef);
+    CFStringRef (*group)(CFDictionaryRef);
     int64_t (*value)(CFDictionaryRef, int32_t);
 };
+
+// Independently identified in Apple's 27.2 (26B123) M6 kernel cache.
+// See docs/firmware/m6-27.2-clpc.json; unknown drivers/builds have no mapping.
+uint64_t wc_energy_clpc_cpu_report_id(const char *bundle, const char *os_build) {
+    if (!bundle || !os_build) return 0;
+    if (strcmp(bundle, "com.apple.driver.AppleT8152CLPC") == 0 && strcmp(os_build, "26B123") == 0) {
+        return 0x00000010485d4bfcULL;
+    }
+    return 0;
+}
+
+static CFMutableDictionaryRef clpc_cpu_channel(uint64_t driver, uint64_t report) {
+    int64_t channel_type = 1LL | (2LL << 16) | (1LL << 32);
+    int64_t energy_unit = (3LL << 56) | (118LL << 32); // IOReport integer energy, nanojoules.
+    int64_t driver_value = (int64_t)driver, report_value = (int64_t)report;
+    CFNumberRef driver_number = CFNumberCreate(NULL, kCFNumberSInt64Type, &driver_value);
+    CFNumberRef report_number = CFNumberCreate(NULL, kCFNumberSInt64Type, &report_value);
+    CFNumberRef type_number = CFNumberCreate(NULL, kCFNumberSInt64Type, &channel_type);
+    CFNumberRef unit_number = CFNumberCreate(NULL, kCFNumberSInt64Type, &energy_unit);
+    const void *legend_values[] = {report_number, type_number, CFSTR("CPU Energy")};
+    CFArrayRef legend = CFArrayCreate(NULL, legend_values, 3, &kCFTypeArrayCallBacks);
+    const void *info_keys[] = {CFSTR("IOReportChannelUnit")}, *info_values[] = {unit_number};
+    CFDictionaryRef info = CFDictionaryCreate(NULL, info_keys, info_values, 1,
+        &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFMutableDictionaryRef channel = CFDictionaryCreateMutable(NULL, 0,
+        &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFDictionarySetValue(channel, CFSTR("DriverID"), driver_number);
+    CFDictionarySetValue(channel, CFSTR("DriverName"), CFSTR("AppleCLPC"));
+    CFDictionarySetValue(channel, CFSTR("IOReportGroupName"), CFSTR("CLPC"));
+    CFDictionarySetValue(channel, CFSTR("IOReportSubGroupName"), CFSTR("Energy Counters"));
+    CFDictionarySetValue(channel, CFSTR("IOReportChannelInfo"), info);
+    CFDictionarySetValue(channel, CFSTR("LegendChannel"), legend);
+    CFRelease(info); CFRelease(legend); CFRelease(unit_number);
+    CFRelease(type_number); CFRelease(report_number); CFRelease(driver_number);
+    return channel;
+}
+
+static void append_clpc_cpu_channels(CFMutableDictionaryRef channels) {
+    char build[64] = {0}; size_t size = sizeof(build);
+    if (sysctlbyname("kern.osversion", build, &size, NULL, 0) != 0) return;
+    CFTypeRef original = CFDictionaryGetValue(channels, CFSTR("IOReportChannels"));
+    if (original && CFGetTypeID(original) != CFArrayGetTypeID()) return;
+    CFMutableArrayRef selected = original ? CFArrayCreateMutableCopy(NULL, 0, original)
+        : CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
+    io_iterator_t iterator = IO_OBJECT_NULL;
+    if (IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("AppleCLPC"), &iterator) == KERN_SUCCESS) {
+        io_service_t entry;
+        while ((entry = IOIteratorNext(iterator)) != IO_OBJECT_NULL) {
+            CFTypeRef bundle = IORegistryEntryCreateCFProperty(entry, CFSTR("CFBundleIdentifier"), kCFAllocatorDefault, 0);
+            char identifier[128] = {0}; uint64_t driver = 0;
+            if (bundle && CFGetTypeID(bundle) == CFStringGetTypeID()
+                && CFStringGetCString(bundle, identifier, sizeof(identifier), kCFStringEncodingUTF8)
+                && IORegistryEntryGetRegistryEntryID(entry, &driver) == KERN_SUCCESS) {
+                uint64_t report = wc_energy_clpc_cpu_report_id(identifier, build);
+                if (report) {
+                    CFMutableDictionaryRef channel = clpc_cpu_channel(driver, report);
+                    CFArrayAppendValue(selected, channel);
+                    CFRelease(channel);
+                }
+            }
+            if (bundle) CFRelease(bundle);
+            IOObjectRelease(entry);
+        }
+        IOObjectRelease(iterator);
+    }
+    CFDictionarySetValue(channels, CFSTR("IOReportChannels"), selected);
+    CFRelease(selected);
+}
 
 void wc_energy_destroy(WCEnergyReader *reader) {
     if (!reader) return;
@@ -48,15 +119,21 @@ WCEnergyReader *wc_energy_create(void) {
     reader->delta = dlsym(reader->library, "IOReportCreateSamplesDelta");
     reader->name = dlsym(reader->library, "IOReportChannelGetChannelName");
     reader->unit = dlsym(reader->library, "IOReportChannelGetUnitLabel");
+    reader->group = dlsym(reader->library, "IOReportChannelGetGroup");
     reader->value = dlsym(reader->library, "IOReportSimpleGetIntegerValue");
     if (!copy || !subscribe || !reader->sample || !reader->delta || !reader->name || !reader->unit || !reader->value) {
         wc_energy_destroy(reader); return NULL;
     }
     CFDictionaryRef raw = copy(CFSTR("Energy Model"), NULL, 0, 0, 0);
-    if (!raw) { wc_energy_destroy(reader); return NULL; }
-    reader->channels = CFDictionaryCreateMutableCopy(NULL, 0, raw);
-    CFRelease(raw);
+    reader->channels = raw ? CFDictionaryCreateMutableCopy(NULL, 0, raw)
+        : CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    if (raw) CFRelease(raw);
     if (!reader->channels) { wc_energy_destroy(reader); return NULL; }
+    if (reader->group) append_clpc_cpu_channels(reader->channels);
+    CFTypeRef selected = CFDictionaryGetValue(reader->channels, CFSTR("IOReportChannels"));
+    if (!selected || CFGetTypeID(selected) != CFArrayGetTypeID() || CFArrayGetCount(selected) == 0) {
+        wc_energy_destroy(reader); return NULL;
+    }
     CFMutableDictionaryRef subscribed = NULL;
     reader->subscription = subscribe(NULL, reader->channels, &subscribed, 0, NULL);
     if (subscribed) { CFRelease(reader->channels); reader->channels = subscribed; }
@@ -103,6 +180,8 @@ int wc_energy_sample(WCEnergyReader *reader, WCEnergyReading *readings, int capa
             // A truncated family could underreport CPU power. Reject the interval instead.
             if (found == capacity) { CFRelease(delta); *elapsed = 0; return 0; }
             value.energy = reader->value(channel, 0);
+            CFStringRef group = reader->group ? reader->group(channel) : NULL;
+            value.source = group && CFEqual(group, CFSTR("CLPC")) ? 1 : 0;
             readings[found++] = value;
         }
     }

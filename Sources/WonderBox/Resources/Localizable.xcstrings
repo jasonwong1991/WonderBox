@@ -1130,6 +1130,16 @@
         }
       }
     },
+    "CPU power sensor is unavailable on this system": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前系统暂无可读取的 CPU 功耗传感器"
+          }
+        }
+      }
+    },
     "CPU/GPU power uses macOS energy counters where available; system power uses the SMC system sensor. These are hardware-reported or model-based readings, not wall-outlet measurements. Components may overlap and must not be added together.": {
       "localizations": {
         "zh-Hans": {

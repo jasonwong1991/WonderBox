@@ -41,6 +41,8 @@ struct EnergyCounter: Sendable {
     let channel: String
     let unit: String
     let value: Int64
+    var source: Source = .energyModel
+    enum Source: Sendable { case energyModel, clpc }
 
     func watts(elapsed: TimeInterval) -> Double? {
         guard elapsed.isFinite, (0.5...10).contains(elapsed), value >= 0 else { return nil }
@@ -133,7 +135,7 @@ enum PowerClassifier {
         return sum(types, source: "IOReport · " + types.map(\.name).joined(separator: " + "))
     }
 
-    static func readings(energy: [EnergyCounter], elapsed: TimeInterval, smc: [String: Double]) -> [PowerComponent: PowerReading] {
+    static func readings(energy: [EnergyCounter], elapsed: TimeInterval, smc: [String: Double], allowLegacyCPU: Bool = true) -> [PowerComponent: PowerReading] {
         var result: [PowerComponent: PowerReading] = [:]
         func counter(_ names: [String]) -> PowerReading? {
             for name in names {
@@ -152,7 +154,15 @@ enum PowerClassifier {
             return nil
         }
         result[.system] = sensor(["PSTR"])
-        result[.cpu] = cpuReading(energy, elapsed: elapsed) ?? sensor(["PCTR"]) ?? sensor(["PCPC", "PCPT", "PCPR"], package: true)
+        // macOS 27 can stop updating legacy CPU energy without Apple's entitlement.
+        // Prefer a separately identified CLPC aggregate; keep measured zero valid.
+        let clpc = energy.filter { $0.source == .clpc && $0.channel == "CPU Energy" && $0.unit == "nJ" }
+        if clpc.count == 1, let watts = clpc[0].watts(elapsed: elapsed) {
+            result[.cpu] = PowerReading(watts: watts, source: "IOReport CLPC · CPU Energy")
+        }
+        let legacy = energy.filter { $0.source == .energyModel }
+        if result[.cpu] == nil, allowLegacyCPU { result[.cpu] = cpuReading(legacy, elapsed: elapsed) }
+        if result[.cpu] == nil { result[.cpu] = sensor(["PCTR"]) ?? sensor(["PCPC", "PCPT", "PCPR"], package: true) }
         result[.gpu] = counter(["GPU Energy", "GPU"])
         if result[.gpu] == nil {
             let rails = ["PG0R", "PG1R"].filter { smc[$0] != nil }

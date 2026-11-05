@@ -65,6 +65,57 @@ final class PowerTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(readings[.gpu]).watts, 0.2, accuracy: 0.000001)
     }
 
+    func testVerifiedCLPCPowerReplacesFrozenLegacyCPUWithoutAddingSources() throws {
+        let values = [EnergyCounter(channel: "CPU Energy", unit: "mJ", value: 0),
+                      EnergyCounter(channel: "GPU Energy", unit: "mJ", value: 3000),
+                      EnergyCounter(channel: "CPU Energy", unit: "nJ", value: 6_000_000_000, source: .clpc)]
+        let result = PowerClassifier.readings(energy: values, elapsed: 3, smc: ["PCPC": 8], allowLegacyCPU: false)
+        XCTAssertEqual(try XCTUnwrap(result[.cpu]).watts, 2)
+        XCTAssertEqual(result[.cpu]?.source, "IOReport CLPC · CPU Energy")
+        XCTAssertEqual(result[.gpu]?.watts, 1)
+    }
+
+    func testCLPCZeroIsValidWhileMissingOrInvalidCountersStayUnavailable() {
+        let zero = EnergyCounter(channel: "CPU Energy", unit: "nJ", value: 0, source: .clpc)
+        XCTAssertEqual(PowerClassifier.readings(energy: [zero], elapsed: 3, smc: [:], allowLegacyCPU: false)[.cpu]?.watts, 0)
+        for invalid in [EnergyCounter(channel: "CPU Energy", unit: "nJ", value: -1, source: .clpc),
+                        EnergyCounter(channel: "CPU Energy", unit: "mJ", value: 3000, source: .clpc),
+                        EnergyCounter(channel: "Other Energy", unit: "nJ", value: 3000, source: .clpc)] {
+            XCTAssertNil(PowerClassifier.readings(energy: [invalid], elapsed: 3, smc: [:], allowLegacyCPU: false)[.cpu])
+        }
+        XCTAssertNil(PowerClassifier.readings(energy: [zero, zero], elapsed: 3, smc: [:], allowLegacyCPU: false)[.cpu])
+        XCTAssertNil(PowerClassifier.readings(energy: [zero], elapsed: 30, smc: [:], allowLegacyCPU: false)[.cpu])
+    }
+
+    func testMacOS27DoesNotPresentUntrustedLegacyCPUAsZeroButRetainsSMCFallback() {
+        let legacy = [EnergyCounter(channel: "CPU Energy", unit: "mJ", value: 0),
+                      EnergyCounter(channel: "GPU Energy", unit: "mJ", value: 3000)]
+        XCTAssertNil(PowerClassifier.readings(energy: legacy, elapsed: 3, smc: [:], allowLegacyCPU: false)[.cpu])
+        XCTAssertEqual(PowerClassifier.readings(energy: legacy, elapsed: 3, smc: [:], allowLegacyCPU: false)[.gpu]?.watts, 1)
+        XCTAssertEqual(PowerClassifier.readings(energy: legacy, elapsed: 3, smc: ["PCPC": 12], allowLegacyCPU: false)[.cpu]?.watts, 12)
+        XCTAssertEqual(PowerClassifier.readings(energy: legacy, elapsed: 3, smc: [:], allowLegacyCPU: true)[.cpu]?.watts, 0)
+    }
+
+    func testM6CLPCMappingMatchesTheIdentifiedAppleFirmwareAndRejectsUnknownBuilds() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let data = try Data(contentsOf: root.appendingPathComponent("docs/firmware/m6-27.2-clpc.json"))
+        let evidence = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let driver = try XCTUnwrap(evidence["driver"] as? [String: Any])
+        let cpu = try XCTUnwrap(driver["cpu"] as? [String: Any])
+        let identifier = try XCTUnwrap(driver["bundle"] as? String)
+        let build = try XCTUnwrap(evidence["build"] as? String)
+        let text = try XCTUnwrap(cpu["id"] as? String)
+        let report = try XCTUnwrap(UInt64(text.dropFirst(2), radix: 16))
+        XCTAssertEqual(report, 0x00000010485d4bfc)
+        XCTAssertEqual(wc_energy_clpc_cpu_report_id(identifier, build), report)
+        for unknown in ["26B124", "26B123beta", "26A428", "27.2", "", "future-build"] {
+            XCTAssertEqual(wc_energy_clpc_cpu_report_id(identifier, unknown), 0)
+        }
+        XCTAssertEqual(wc_energy_clpc_cpu_report_id("com.apple.driver.AppleT8142CLPC", build), 0)
+        XCTAssertEqual(wc_energy_clpc_cpu_report_id("AppleT8152CLPC", build), 0)
+        XCTAssertEqual(wc_energy_clpc_cpu_report_id(nil, nil), 0)
+    }
+
     func testCPUTotalTakesPriorityOverOverlappingCoreTypesAndDieCounters() {
         let channels = [EnergyCounter(channel: "CPU Energy", unit: "mJ", value: 18_000),
                         EnergyCounter(channel: "DIE_0_CPU Energy", unit: "mJ", value: 9000),
@@ -136,7 +187,8 @@ final class PowerTests: XCTestCase {
             var value = tuple
             return withUnsafeBytes(of: &value) { String(decoding: $0.prefix(while: { $0 != 0 }), as: UTF8.self) }
         }
-        let counters = raw.prefix(count).map { EnergyCounter(channel: string($0.channel), unit: string($0.unit), value: $0.energy) }
+        let counters = raw.prefix(count).map { EnergyCounter(channel: string($0.channel), unit: string($0.unit), value: $0.energy,
+                                   source: $0.source == 1 ? .clpc : .energyModel) }
         guard PowerClassifier.readings(energy: counters, elapsed: elapsed, smc: [:])[.cpu] != nil else {
             throw XCTSkip("This host does not expose a supported complete CPU energy family")
         }

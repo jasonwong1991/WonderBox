@@ -28,6 +28,7 @@ cp "$BIN_DIR/WonderFanHelper" "$CONTENTS/Helpers/WonderFanHelper"
 cp "$BIN_DIR/WonderMaintenanceHelper" "$CONTENTS/Helpers/WonderMaintenanceHelper"
 cp "Sources/WonderBox/Resources/Info.plist" "$CONTENTS/Info.plist"
 cp "Sources/WonderBox/Resources/PrivacyInfo.xcprivacy" "$CONTENTS/Resources/PrivacyInfo.xcprivacy"
+cp "THIRD_PARTY_NOTICES.md" "$CONTENTS/Resources/ThirdPartyNotices.txt"
 cp "Sources/WonderBox/Resources/com.wondercraft.WonderBox.FanHelper.plist" "$CONTENTS/Resources/com.wondercraft.WonderBox.FanHelper.plist"
 
 # String catalogs → <language>.lproj/Localizable.strings; the app resolves them through Bundle.main.

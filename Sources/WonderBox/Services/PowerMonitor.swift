@@ -34,12 +34,14 @@ actor PowerSampler {
             energyCount = Int(wc_energy_sample(reader, &rawEnergy, Int32(rawEnergy.count), &elapsed))
         }
         let energy = rawEnergy.prefix(energyCount).map { raw in
-            EnergyCounter(channel: string(raw.channel), unit: string(raw.unit), value: raw.energy)
+            EnergyCounter(channel: string(raw.channel), unit: string(raw.unit), value: raw.energy,
+                          source: raw.source == 1 ? .clpc : .energyModel)
         }
         var rawPower = [WCPowerReading](repeating: WCPowerReading(), count: 16)
         let powerCount = Int(wc_smc_read_power(&rawPower, Int32(rawPower.count)))
         let smc = Dictionary(uniqueKeysWithValues: rawPower.prefix(powerCount).map { (string($0.key), $0.watts) })
-        return PowerSnapshot(sampledAt: Date(), readings: PowerClassifier.readings(energy: energy, elapsed: elapsed, smc: smc))
+        return PowerSnapshot(sampledAt: Date(), readings: PowerClassifier.readings(energy: energy, elapsed: elapsed, smc: smc,
+                             allowLegacyCPU: ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 27))
     }
 
     private func string<T>(_ tuple: T) -> String {
