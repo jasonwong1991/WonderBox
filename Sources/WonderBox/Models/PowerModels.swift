@@ -57,6 +57,82 @@ struct EnergyCounter: Sendable {
 }
 
 enum PowerClassifier {
+    private enum CPUFamily: String { case total = "CPU Energy", efficiency = "ECPU Energy", performance = "PCPU Energy", middle = "MCPU Energy" }
+    private struct CPUChannel {
+        let die: Int?
+        let family: CPUFamily
+        let name: String
+        let watts: Double?
+    }
+
+    private static func cpuChannel(_ counter: EnergyCounter, elapsed: TimeInterval) -> CPUChannel? {
+        var name = counter.channel
+        var die: Int?
+        if name.hasPrefix("DIE_") {
+            let parts = name.split(separator: "_", maxSplits: 2, omittingEmptySubsequences: false)
+            guard parts.count == 3, !parts[1].isEmpty, parts[1].allSatisfy({ $0.isASCII && $0.isNumber }),
+                  let number = Int(parts[1]), (0..<8).contains(number), String(number) == parts[1] else { return nil }
+            die = number
+            name = String(parts[2])
+        }
+        let family: CPUFamily
+        switch name {
+        case "CPU Energy": family = .total
+        case "ECPU Energy", "eCPUs Energy": family = .efficiency
+        case "PCPU Energy", "pCPUs Energy": family = .performance
+        case "MCPU Energy", "mCPUs Energy": family = .middle
+        default: return nil
+        }
+        return CPUChannel(die: die, family: family, name: counter.channel, watts: counter.watts(elapsed: elapsed))
+    }
+
+    private static func cpuReading(_ energy: [EnergyCounter], elapsed: TimeInterval) -> PowerReading? {
+        let channels = energy.compactMap { cpuChannel($0, elapsed: elapsed) }
+        func sum(_ values: [CPUChannel], source: String) -> PowerReading? {
+            guard !values.isEmpty, values.allSatisfy({ $0.watts != nil }),
+                  Set(values.map(\.name)).count == values.count else { return nil }
+            return PowerReading.validated(values.reduce(0) { $0 + $1.watts! }, source: source)
+        }
+        func typed(_ values: [CPUChannel]) -> [CPUChannel]? {
+            guard !values.isEmpty else { return nil }
+            let grouped = Dictionary(grouping: values, by: \.family)
+            // A CPU total needs every exposed type and at least performance plus
+            // efficiency/middle cores. A single type is not whole-CPU power.
+            guard grouped[.performance] != nil, grouped[.efficiency] != nil || grouped[.middle] != nil else { return nil }
+            var selected: [CPUChannel] = []
+            for family in [CPUFamily.efficiency, .middle, .performance] {
+                guard let variants = grouped[family] else { continue }
+                // Canonical and plural spellings can be aliases, not additive sources.
+                let canonical = variants.filter { $0.name.hasSuffix(family.rawValue) }
+                let preferred = canonical.isEmpty ? variants : canonical
+                guard preferred.count == 1 else { return nil }
+                selected += preferred
+            }
+            return selected
+        }
+
+        let total = channels.filter { $0.die == nil && $0.family == .total }
+        if total.count == 1, let reading = sum(total, source: "IOReport · CPU Energy") { return reading }
+        let perDie = channels.filter { $0.die != nil }
+        let dies = Set(perDie.compactMap(\.die)).sorted()
+        // Multi-die machines expose separate totals. Never add a whole-chip
+        // aggregate to its per-die or per-type counters, or publish one die alone.
+        if dies.count >= 2, dies == Array(0..<dies.count) {
+            let totals = perDie.filter { $0.family == .total }
+            if totals.count == dies.count, Set(totals.compactMap(\.die)) == Set(dies),
+               let reading = sum(totals, source: "IOReport · " + totals.map(\.name).sorted().joined(separator: " + ")) { return reading }
+            var selected: [CPUChannel] = []
+            for die in dies {
+                guard let family = typed(perDie.filter { $0.die == die && $0.family != .total }) else { return nil }
+                selected += family
+            }
+            return sum(selected, source: "IOReport · CPU core types (\(dies.count) dies)")
+        }
+        // A partial per-die family must not be mixed with unscoped counters.
+        guard perDie.isEmpty, let types = typed(channels.filter { $0.die == nil && $0.family != .total }) else { return nil }
+        return sum(types, source: "IOReport · " + types.map(\.name).joined(separator: " + "))
+    }
+
     static func readings(energy: [EnergyCounter], elapsed: TimeInterval, smc: [String: Double]) -> [PowerComponent: PowerReading] {
         var result: [PowerComponent: PowerReading] = [:]
         func counter(_ names: [String]) -> PowerReading? {
@@ -76,7 +152,7 @@ enum PowerClassifier {
             return nil
         }
         result[.system] = sensor(["PSTR"])
-        result[.cpu] = counter(["CPU Energy"]) ?? sensor(["PCTR"]) ?? sensor(["PCPC", "PCPT", "PCPR"], package: true)
+        result[.cpu] = cpuReading(energy, elapsed: elapsed) ?? sensor(["PCTR"]) ?? sensor(["PCPC", "PCPT", "PCPR"], package: true)
         result[.gpu] = counter(["GPU Energy", "GPU"])
         if result[.gpu] == nil {
             let rails = ["PG0R", "PG1R"].filter { smc[$0] != nil }

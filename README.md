@@ -23,7 +23,7 @@
 
 ## 1.2 Stable Release
 
-Current version: **1.2.1**, build **121**. [Download](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.1) · [Release notes](docs/releases/v1.2.1.md).
+Current version: **1.2.2**, build **122**. [Download](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.2) · [Release notes](docs/releases/v1.2.2.md).
 
 ### Menu bar CPU and RAM
 
@@ -35,7 +35,7 @@ Current version: **1.2.1**, build **121**. [Download](https://github.com/jasonwo
 ### Power monitoring
 
 - A dedicated **Power** page shows current system, CPU and GPU watts, plus selectable **1-minute / 15-minute / 1-hour** charts with observed-interval averages and peaks.
-- Apple Silicon uses optional, dynamically loaded IOReport energy counters divided by the actual sample interval. SMC provides system power and supported Intel/component fallbacks. These are hardware/model readings, not wall-outlet measurements; CPU-package readings may include the integrated GPU. Values from overlapping sensors are never added to system power.
+- Apple Silicon uses optional, dynamically loaded IOReport energy counters divided by the actual sample interval. CPU sampling supports whole-CPU totals, complete per-die totals and complete efficiency/performance core-type families, choosing one family to avoid double counting. The first sample establishes a baseline and measures a delta after about 0.6 seconds; missing counters remain unavailable. SMC provides system power and supported Intel/component fallbacks. These are hardware/model readings, not wall-outlet measurements; CPU-package readings may include the integrated GPU. Values from overlapping sensors are never added to system power.
 - The Power page shows only system, CPU and GPU power. The unsupported fan-watt card has been removed; no wattage is guessed from RPM. Fan RPM remains on the Fan page and in the menu bar panel, including genuine 0 RPM readings. Opening the Fan page does not request administrator access or change fan mode. Other unavailable/stale power values show `—`, not zero.
 - Sampling follows the existing live-monitoring lifecycle, approximately every 3 seconds, including while other tabs are selected. Up to one hour stays in memory; sleep/paused monitoring leaves gaps, and quitting clears it. No administrator prompt, new helper, disk history or telemetry is involved.
 - Sensor availability varies by hardware/macOS; sandboxed builds leave these private-API readings unavailable.

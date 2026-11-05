@@ -5,24 +5,34 @@ import Foundation
 actor PowerSampler {
     private var reader: OpaquePointer?
     private var lastDiscovery = -Double.infinity
+    private var generation = 0
     deinit { wc_energy_destroy(reader) }
 
     func reset() {
+        generation += 1
         wc_energy_destroy(reader)
         reader = nil
         lastDiscovery = -.infinity
     }
 
-    func sample() -> PowerSnapshot {
+    func sample() async -> PowerSnapshot {
         guard ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] == nil else { return PowerSnapshot() }
         let now = ProcessInfo.processInfo.systemUptime
         if reader == nil && now - lastDiscovery >= 60 {
             reader = wc_energy_create()
             lastDiscovery = now
         }
-        var rawEnergy = [WCEnergyReading](repeating: WCEnergyReading(), count: 8)
+        var rawEnergy = [WCEnergyReading](repeating: WCEnergyReading(), count: 64)
         var elapsed = 0.0
-        let energyCount = Int(wc_energy_sample(reader, &rawEnergy, Int32(rawEnergy.count), &elapsed))
+        var energyCount = Int(wc_energy_sample(reader, &rawEnergy, Int32(rawEnergy.count), &elapsed))
+        if reader != nil, elapsed == 0 {
+            let token = generation
+            // A first/wake sample establishes energy baselines. Obtain a real delta
+            // before publishing instead of leaving CPU blank until the next timer.
+            do { try await Task.sleep(for: .milliseconds(600)) } catch { return PowerSnapshot() }
+            guard !Task.isCancelled, generation == token else { return PowerSnapshot() }
+            energyCount = Int(wc_energy_sample(reader, &rawEnergy, Int32(rawEnergy.count), &elapsed))
+        }
         let energy = rawEnergy.prefix(energyCount).map { raw in
             EnergyCounter(channel: string(raw.channel), unit: string(raw.unit), value: raw.energy)
         }

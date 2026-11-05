@@ -3155,6 +3155,16 @@
       },
       "extractionState": "stale"
     },
+    "Measuring power…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在测量功耗…"
+          }
+        }
+      }
+    },
     "Measuring process memory…": {
       "localizations": {
         "zh-Hans": {

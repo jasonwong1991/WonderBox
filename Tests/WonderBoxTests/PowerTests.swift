@@ -55,6 +55,94 @@ final class PowerTests: XCTestCase {
         XCTAssertEqual(PowerReading.formatted(nil), "—")
     }
 
+    func testCPUPowerUsesCoreTypeEnergyWhenAnAggregateIsNotExposed() throws {
+        let channels = [EnergyCounter(channel: "ECPU Energy", unit: "mJ", value: 3000),
+                        EnergyCounter(channel: "PCPU Energy", unit: "uJ", value: 9_000_000),
+                        EnergyCounter(channel: "GPU Energy", unit: "mJ", value: 600)]
+        let readings = PowerClassifier.readings(energy: channels, elapsed: 3, smc: [:])
+        XCTAssertEqual(try XCTUnwrap(readings[.cpu]).watts, 4)
+        XCTAssertEqual(readings[.cpu]?.source, "IOReport · ECPU Energy + PCPU Energy")
+        XCTAssertEqual(try XCTUnwrap(readings[.gpu]).watts, 0.2, accuracy: 0.000001)
+    }
+
+    func testCPUTotalTakesPriorityOverOverlappingCoreTypesAndDieCounters() {
+        let channels = [EnergyCounter(channel: "CPU Energy", unit: "mJ", value: 18_000),
+                        EnergyCounter(channel: "DIE_0_CPU Energy", unit: "mJ", value: 9000),
+                        EnergyCounter(channel: "DIE_1_CPU Energy", unit: "mJ", value: 9000),
+                        EnergyCounter(channel: "ECPU Energy", unit: "mJ", value: 3000),
+                        EnergyCounter(channel: "PCPU Energy", unit: "mJ", value: 15_000)]
+        XCTAssertEqual(PowerClassifier.readings(energy: channels, elapsed: 3, smc: [:])[.cpu]?.watts, 6)
+    }
+
+    func testUltraUsesCompleteDieTotalsInsteadOfAddingNestedCoreTypes() throws {
+        let channels = [EnergyCounter(channel: "DIE_0_CPU Energy", unit: "mJ", value: 6000),
+                        EnergyCounter(channel: "DIE_1_CPU Energy", unit: "mJ", value: 9000),
+                        EnergyCounter(channel: "DIE_0_ECPU Energy", unit: "mJ", value: 1000),
+                        EnergyCounter(channel: "DIE_0_PCPU Energy", unit: "mJ", value: 5000)]
+        let value = try XCTUnwrap(PowerClassifier.readings(energy: channels, elapsed: 3, smc: [:])[.cpu])
+        XCTAssertEqual(value.watts, 5)
+        XCTAssertEqual(value.source, "IOReport · DIE_0_CPU Energy + DIE_1_CPU Energy")
+    }
+
+    func testCoreTypeAliasesAreNotAddedTogetherAndAllExposedTypesMustBeValid() {
+        let aliases = [EnergyCounter(channel: "ECPU Energy", unit: "mJ", value: 3000),
+                       EnergyCounter(channel: "eCPUs Energy", unit: "mJ", value: 3000),
+                       EnergyCounter(channel: "PCPU Energy", unit: "mJ", value: 9000),
+                       EnergyCounter(channel: "pCPUs Energy", unit: "mJ", value: 9000)]
+        XCTAssertEqual(PowerClassifier.readings(energy: aliases, elapsed: 3, smc: [:])[.cpu]?.watts, 4)
+        let middleAndPerformance = [EnergyCounter(channel: "mCPUs Energy", unit: "mJ", value: 3000),
+                                    EnergyCounter(channel: "pCPUs Energy", unit: "mJ", value: 9000)]
+        XCTAssertEqual(PowerClassifier.readings(energy: middleAndPerformance, elapsed: 3, smc: [:])[.cpu]?.watts, 4)
+        XCTAssertNil(PowerClassifier.readings(energy: aliases + [EnergyCounter(channel: "MCPU Energy", unit: "unknown", value: 10)], elapsed: 3, smc: [:])[.cpu])
+    }
+
+    func testPartialDuplicateUnknownAndResetCPUFamiliesDoNotProduceATotal() {
+        let invalid: [[EnergyCounter]] = [
+            [EnergyCounter(channel: "ECPU Energy", unit: "mJ", value: 3000)],
+            [EnergyCounter(channel: "DIE_0_CPU Energy", unit: "mJ", value: 3000)],
+            [EnergyCounter(channel: "DIE_0_CPU Energy", unit: "mJ", value: 3000), EnergyCounter(channel: "DIE_2_CPU Energy", unit: "mJ", value: 3000)],
+            [EnergyCounter(channel: "DIE_0_CPU Energy", unit: "mJ", value: 3000), EnergyCounter(channel: "DIE_1_CPU Energy", unit: "mJ", value: -1)],
+            [EnergyCounter(channel: "ECPU Energy", unit: "mJ", value: 3000), EnergyCounter(channel: "PCPU Energy", unit: "mJ", value: -1)],
+            [EnergyCounter(channel: "ECPU Energy", unit: "mJ", value: 3000), EnergyCounter(channel: "PCPU Energy", unit: "mJ", value: 3000), EnergyCounter(channel: "PCPU Energy", unit: "mJ", value: 3000)],
+            [EnergyCounter(channel: "Unknown CPU Energy", unit: "mJ", value: 3000)],
+            [EnergyCounter(channel: "DIE_00_CPU Energy", unit: "mJ", value: 3000)],
+            [EnergyCounter(channel: "EACC_CPU", unit: "mJ", value: 3000), EnergyCounter(channel: "PACC0_CPU", unit: "mJ", value: 9000)]
+        ]
+        for channels in invalid {
+            XCTAssertNil(PowerClassifier.readings(energy: channels, elapsed: 3, smc: [:])[.cpu], channels.map(\.channel).joined(separator: ", "))
+        }
+        let reset = [EnergyCounter(channel: "ECPU Energy", unit: "mJ", value: 3000), EnergyCounter(channel: "PCPU Energy", unit: "mJ", value: -1)]
+        XCTAssertEqual(PowerClassifier.readings(energy: reset, elapsed: 3, smc: ["PCPC": 12])[.cpu]?.watts, 12)
+    }
+
+    func testCompletePerDieCoreTypesSupportZeroWithoutTreatingMissingAsZero() {
+        let channels = (0..<2).flatMap { die in
+            [EnergyCounter(channel: "DIE_\(die)_ECPU Energy", unit: "mJ", value: 0),
+             EnergyCounter(channel: "DIE_\(die)_PCPU Energy", unit: "mJ", value: 0)]
+        }
+        XCTAssertEqual(PowerClassifier.readings(energy: channels, elapsed: 3, smc: [:])[.cpu]?.watts, 0)
+        XCTAssertNil(PowerClassifier.readings(energy: Array(channels.dropLast()), elapsed: 3, smc: [:])[.cpu])
+    }
+
+    func testFirstPowerSamplePrimesAnEnergyBaselineWhenHostSupportsCPU() async throws {
+        guard ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] == nil,
+              let native = wc_energy_create() else { throw XCTSkip("IOReport Energy Model not exposed on this host") }
+        defer { wc_energy_destroy(native) }
+        var raw = [WCEnergyReading](repeating: WCEnergyReading(), count: 64), elapsed = 0.0
+        _ = wc_energy_sample(native, &raw, Int32(raw.count), &elapsed)
+        let first = await PowerSampler().sample()
+        let count = Int(wc_energy_sample(native, &raw, Int32(raw.count), &elapsed))
+        func string<T>(_ tuple: T) -> String {
+            var value = tuple
+            return withUnsafeBytes(of: &value) { String(decoding: $0.prefix(while: { $0 != 0 }), as: UTF8.self) }
+        }
+        let counters = raw.prefix(count).map { EnergyCounter(channel: string($0.channel), unit: string($0.unit), value: $0.energy) }
+        guard PowerClassifier.readings(energy: counters, elapsed: elapsed, smc: [:])[.cpu] != nil else {
+            throw XCTSkip("This host does not expose a supported complete CPU energy family")
+        }
+        XCTAssertNotNil(first.readings[.cpu], "The first published sample must contain a measured CPU delta after priming")
+    }
+
     func testPowerSMCDecoderHandlesFloatAndFixedPointWithoutIntegerFallback() {
         func decode(_ type: String, _ bytes: [UInt8]) -> Double {
             type.withCString { type in bytes.withUnsafeBufferPointer { wc_smc_decode_power(type, $0.baseAddress, Int32($0.count)) } }

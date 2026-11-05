@@ -5,6 +5,11 @@
 #include <string.h>
 #include <time.h>
 
+static int has_suffix(const char *text, const char *suffix) {
+    size_t length = strlen(text), suffix_length = strlen(suffix);
+    return length >= suffix_length && strcmp(text + length - suffix_length, suffix) == 0;
+}
+
 // IOReport is optional/private. Resolve every symbol before use so other macOS
 // versions/Intel can fall back to SMC without a launch-time linker failure.
 struct WCEnergyReader {
@@ -83,15 +88,20 @@ int wc_energy_sample(WCEnergyReader *reader, WCEnergyReading *readings, int capa
     int found = 0;
     CFTypeRef channels = CFDictionaryGetValue(delta, CFSTR("IOReportChannels"));
     if (channels && CFGetTypeID(channels) == CFArrayGetTypeID()) {
-        for (CFIndex i = 0; i < CFArrayGetCount(channels) && found < capacity; i++) {
+        for (CFIndex i = 0; i < CFArrayGetCount(channels); i++) {
             CFTypeRef channel = CFArrayGetValueAtIndex(channels, i);
             if (CFGetTypeID(channel) != CFDictionaryGetTypeID()) continue;
             CFStringRef name = reader->name(channel), unit = reader->unit(channel);
-            // Aggregate channels only. Summing cores/clusters with CPU Energy would double count.
-            if (!name || !unit || !(CFEqual(name, CFSTR("CPU Energy")) || CFEqual(name, CFSTR("GPU Energy")) || CFEqual(name, CFSTR("GPU")))) continue;
+            if (!name || !unit) continue;
             WCEnergyReading value = {0};
             if (!CFStringGetCString(name, value.channel, sizeof(value.channel), kCFStringEncodingUTF8)
                 || !CFStringGetCString(unit, value.unit, sizeof(value.unit), kCFStringEncodingUTF8)) continue;
+            // Pass total, per-die and per-type CPU energy counters to Swift, which
+            // selects one complete family. Do not pass raw per-core/rail counters.
+            if (!has_suffix(value.channel, "CPU Energy") && !has_suffix(value.channel, "CPUs Energy")
+                && strcmp(value.channel, "GPU Energy") != 0 && strcmp(value.channel, "GPU") != 0) continue;
+            // A truncated family could underreport CPU power. Reject the interval instead.
+            if (found == capacity) { CFRelease(delta); *elapsed = 0; return 0; }
             value.energy = reader->value(channel, 0);
             readings[found++] = value;
         }

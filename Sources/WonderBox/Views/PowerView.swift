@@ -72,7 +72,8 @@ struct PowerContent: View {
             Text(PowerReading.formatted(reading?.watts))
                 .font(.system(size: 27, weight: .bold, design: .rounded)).monospacedDigit()
                 .accessibilityLabel(item.title + ": " + PowerReading.formatted(reading?.watts))
-            Text(reading?.source ?? String(localized: "No current reading"))
+            Text(reading?.source ?? (monitor.isRefreshing && !monitor.hasSampled
+                 ? String(localized: "Measuring power…") : String(localized: "No current reading")))
                 .font(.caption).foregroundStyle(.secondary).lineLimit(2)
             if reading?.isCPUPackage == true {
                 Text("CPU package; may include integrated GPU").font(.caption2).foregroundStyle(.secondary)
