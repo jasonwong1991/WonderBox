@@ -30,7 +30,6 @@ struct PowerReading: Equatable, Sendable {
 struct PowerSnapshot: Equatable, Sendable {
     var sampledAt = Date()
     var readings: [PowerComponent: PowerReading] = [:]
-    var fans: [FanReading] = []
 
     func reading(_ component: PowerComponent, at now: Date) -> PowerReading? {
         guard (0...10).contains(now.timeIntervalSince(sampledAt)) else { return nil }

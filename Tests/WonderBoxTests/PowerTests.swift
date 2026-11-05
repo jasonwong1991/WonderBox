@@ -194,7 +194,7 @@ final class PowerTests: XCTestCase {
             .system: PowerReading(watts: 32.5, source: "SMC · PSTR"),
             .cpu: PowerReading(watts: 12, source: "IOReport · CPU Energy"),
             .gpu: PowerReading(watts: 2.3, source: "IOReport · GPU Energy")
-        ], fans: [FanReading(id: 0, name: "Fan 1", currentRPM: 1400, minimumRPM: 1200, maximumRPM: 6000)])
+        ])
         let monitor = PowerMonitor { value }
         await monitor.refresh()
         let model = AppModel()

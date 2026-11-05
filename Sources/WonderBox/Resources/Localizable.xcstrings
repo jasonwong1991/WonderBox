@@ -2258,16 +2258,6 @@
         }
       }
     },
-    "Fan Power": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "风扇功耗"
-          }
-        }
-      }
-    },
     "Fan Speed": {
       "localizations": {
         "zh-Hans": {
@@ -3593,16 +3583,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "未找到关联文件。可以关闭此窗口，或授予完全磁盘访问权限后重新扫描。"
-          }
-        }
-      }
-    },
-    "No supported fan watt sensor; RPM is not watts.": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "尚无受支持的风扇功耗传感器；转速不等于瓦数。"
           }
         }
       }

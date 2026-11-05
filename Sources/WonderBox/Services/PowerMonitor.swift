@@ -29,8 +29,7 @@ actor PowerSampler {
         var rawPower = [WCPowerReading](repeating: WCPowerReading(), count: 16)
         let powerCount = Int(wc_smc_read_power(&rawPower, Int32(rawPower.count)))
         let smc = Dictionary(uniqueKeysWithValues: rawPower.prefix(powerCount).map { (string($0.key), $0.watts) })
-        let fans = FanController.readFans()
-        return PowerSnapshot(sampledAt: Date(), readings: PowerClassifier.readings(energy: energy, elapsed: elapsed, smc: smc), fans: fans)
+        return PowerSnapshot(sampledAt: Date(), readings: PowerClassifier.readings(energy: energy, elapsed: elapsed, smc: smc))
     }
 
     private func string<T>(_ tuple: T) -> String {
