@@ -618,14 +618,12 @@ double wc_smc_decode_power(const char type[5], const uint8_t *bytes, int size) {
     return value < 0 ? NAN : ldexp(value, -(int)(fraction - digits));
 }
 
-int wc_smc_read_power(WCPowerReading *readings, int capacity) {
+static int smc_read_power_keys(const char *const *keys, unsigned count, WCPowerReading *readings, int capacity) {
     if (!readings || capacity <= 0) return 0;
-    // A rail, limit, adapter input or battery charge rate is NOT system/CPU power.
-    static const char *keys[] = {"PSTR", "PCTR", "PCPC", "PCPT", "PCPR", "PG0R", "PG1R", "PCGC", "PCPG"};
     io_connect_t connection = IO_OBJECT_NULL;
     if (smc_open(&connection) != kIOReturnSuccess) return 0;
     int found = 0;
-    for (unsigned i = 0; i < sizeof(keys) / sizeof(keys[0]) && found < capacity; i++) {
+    for (unsigned i = 0; i < count && found < capacity; i++) {
         SMCValue value;
         if (smc_read(connection, keys[i], &value) != kIOReturnSuccess) continue;
         char type[5] = {(char)(value.type >> 24), (char)(value.type >> 16), (char)(value.type >> 8), (char)value.type, 0};
@@ -636,4 +634,16 @@ int wc_smc_read_power(WCPowerReading *readings, int capacity) {
     }
     IOServiceClose(connection);
     return found;
+}
+
+int wc_smc_read_power(WCPowerReading *readings, int capacity) {
+    // A rail, limit, adapter input or battery charge rate is NOT system/CPU power.
+    static const char *keys[] = {"PSTR", "PCTR", "PCPC", "PCPT", "PCPR", "PG0R", "PG1R", "PCGC", "PCPG"};
+    return smc_read_power_keys(keys, sizeof(keys) / sizeof(keys[0]), readings, capacity);
+}
+
+double wc_smc_read_system_power(void) {
+    static const char *keys[] = {"PSTR"};
+    WCPowerReading reading;
+    return smc_read_power_keys(keys, 1, &reading, 1) == 1 ? reading.watts : NAN;
 }

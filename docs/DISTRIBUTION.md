@@ -8,6 +8,7 @@ Reference policy: [App Review Guidelines](https://developer.apple.com/app-store/
 | --- | --- | --- | --- |
 | CPU and memory status | Mach host statistics | Yes | Yes |
 | Optional menu-bar CPU/RAM percentages | Read-only Mach counters; app-owned 3-second sampler | Yes | Yes |
+| Optional menu-bar system power (default off) | Read-only SMC PSTR; no IOReport subscription | No | Sensor-dependent |
 | Memory categories, swap, pressure level | Mach host statistics, `sysctl` | Yes | Yes |
 | Per-app memory ranking | `libproc` rusage, `NSRunningApplication` | Sandbox-limited | Yes |
 | Memory-pressure broadcast and file-cache purge | Fixed-command helper daemon (`memory_pressure -S`, `purge`) | No | Yes |
@@ -99,6 +100,16 @@ Before release, compare system/CPU/GPU readings on Intel and Apple Silicon acros
 The optional status-item sampler belongs to the App, not the main-window scene or popup. Both CPU and RAM displays default off and are independently persisted. Scene-level preference changes start/stop the sampler, including removal of the status item; hiding it preserves the saved choices. Sleep clears the current values, and wake establishes a fresh CPU baseline. This does not enable launch at login, install a helper or keep the existing disk/GPU/power/process monitors running in the background.
 
 CPU uses aggregate host tick deltas; RAM reuses the existing App + Wired + Compressed calculation. Unavailable/invalid counters show a dash. Test all four display combinations, preference persistence, hidden/restored status items, color/template icons, main-window closing, sleep/wake and the existing click-to-open popup. Native MenuBarExtra fixture validation on macOS 26.5.2 covers live label updates, both icon styles and closed-window sampling; unit tests also exercise the production Mach reader. Intel/macOS 14 runtime coverage remains a separate compatibility check.
+
+## Menu-bar system power (unreleased)
+
+`menuBarShowPower` is an independent opt-in preference, defaulting to false just like CPU/RAM. The existing app-owned status-item timer reads only SMC PSTR through `wc_smc_read_system_power`, using the same decoder and validation as the Power page. It never substitutes CPU/GPU sums, adapter input or battery charge rate. No IOReport reader, power history, helper, fan write or administrator prompt is started by this setting. Sandboxed builds skip the sensor call and show unavailable.
+
+Power-only mode samples immediately, then approximately every three seconds, even with the main window closed. CPU keeps its existing one-second baseline interval when also enabled. Hidden/disabled status items stop sampling; sleep clears all values, wake restarts, and cancelled generations cannot republish old readings. Missing/invalid power shows `PWR —`; a measured zero shows `PWR 0.0 W`.
+
+Unit coverage includes all eight display combinations, watt rounding/bounds, zero versus unavailable, independent default-off persistence, power-only intervals, hidden/restored items, sleep/wake, cancelled results and settings rendering. Native read-only smoke coverage accepts an unavailable sensor rather than claiming hardware support. Before release, verify a supported Mac's menu label against the Power page's **System Power**, window-closed refresh, relaunch persistence, icon styles and English/Chinese layouts. Intel/macOS 14 and unsupported-sensor runtime checks remain separate acceptance work.
+
+On 2026-11-05, the development build on an M4 Max / macOS 26.5.2 showed the new preference off before enabling it, retained it across relaunch, and displayed live watts in the status item. With the main window closed (zero windows), the label changed from `PWR 23.3 W` to `PWR 29.8 W` over four seconds; reopening the compact dashboard still worked. This is a local lifecycle check, not cross-hardware calibration. The full 347-test suite completed with zero failures and 10 environment/opt-in skips; seven packaging tests and the universal arm64/x86_64 build also passed.
 
 ## CPU power compatibility and startup (1.2.2)
 

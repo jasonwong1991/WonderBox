@@ -1,14 +1,11 @@
 <p align="center">
-  <img src="docs/screenshots/app-icon.png" width="128" alt="WonderBox icon">
+  <img src="docs/screenshots/app-icon.png" width="112" alt="WonderBox icon">
 </p>
-
 <h1 align="center">WonderBox</h1>
-
 <p align="center">
-  A native macOS system toolkit that tells you the truth about your Mac.<br>
-  Memory that actually shrinks, cleanup that finds the real space hogs, and numbers you can verify in Activity Monitor.
+  A native macOS toolkit for monitoring, cleanup and everyday maintenance.<br>
+  See what your Mac is doing. Choose what stays. Keep the useful controls in your menu bar.
 </p>
-
 <p align="center">
   <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white">
   <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white">
@@ -16,240 +13,194 @@
   <img alt="Apple Silicon and Intel" src="https://img.shields.io/badge/arch-Apple%20Silicon%20%7C%20Intel-555">
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green">
 </p>
-
 <p align="center">
-  English · <a href="README.zh-CN.md">简体中文</a>
+  English · <a href="README.zh-CN.md">简体中文</a><br>
+  <a href="https://github.com/jasonwong1991/WonderBox/releases/latest">Download</a> ·
+  <a href="#features">Features</a> · <a href="#installation">Installation</a> ·
+  <a href="#build-and-test">Build &amp; test</a>
 </p>
 
-## 1.2 Stable Release
+![WonderBox overview: CPU, memory, storage, network and system status](docs/screenshots/overview.png)
 
-Current version: **1.2.3**, build **123**. [Download](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.3) · [Release notes](docs/releases/v1.2.3.md).
+Screenshots show the current source build on one Mac, with chosen settings—not necessarily defaults. Readings and sensor availability vary by device. See the [capture notes](docs/SCREENSHOTS.md).
 
-### Menu bar CPU and RAM
+## At a glance
 
-- Under **Settings → Always Available**, enable **Show CPU usage in menu bar** and/or **Show memory usage in menu bar** to see a compact label such as `CPU 12% · RAM 64%` directly in the macOS menu bar.
-- Both values are independently switchable and off by default to preserve the existing icon-only appearance. Changes apply immediately and persist after relaunch; hiding the menu bar shortcut preserves the choices.
-- Values refresh approximately every 3 seconds even with the main window closed. The opt-in sampler reads only CPU/memory counters, without keeping disk, GPU, power or per-app scans running. Turning both values off or hiding the shortcut stops that sampler.
-- CPU is overall processor usage (0–100%); RAM uses the same App + Wired + Compressed memory fraction as the existing panel. Startup/wake CPU sampling waits for a baseline and shows `—` instead of a fabricated zero. Existing color/monochrome icon choices and the click-to-open panel are preserved.
+| Monitor | Maintain | Stay in control |
+| --- | --- | --- |
+| CPU/GPU charts and app rankings | Memory optimization with before/after results | Optional CPU, RAM and power menu-bar labels |
+| Memory pressure, compression and swap | Standard/deep cleanup with item selection | Keep awake and optional launch at login |
+| System/CPU/GPU power history | App uninstall and related-file review | Opt-in uninstall watcher and automatic cleanup |
+| Temperatures and fan RPM | Folder-by-folder disk analysis | English/简体中文, light/dark themes, four accents |
 
-### Power monitoring
+**Release:** [1.2.3 · build 123](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.3) · [release notes](docs/releases/v1.2.3.md).
+**New in the working tree:** optional **system power in the menu bar**, off by default. Build from source to try it; the linked 1.2.3 archive predates this addition.
 
-- A dedicated **Power** page shows current system, CPU and GPU watts, plus selectable **1-minute / 15-minute / 1-hour** charts with observed-interval averages and peaks.
-- Apple Silicon uses optional, dynamically loaded IOReport energy counters divided by the actual sample interval. CPU sampling supports whole-CPU totals, complete per-die totals and complete efficiency/performance core-type families, choosing one family to avoid double counting. The first sample establishes a baseline and measures a delta after about 0.6 seconds; missing counters remain unavailable. SMC provides system power and supported Intel/component fallbacks. These are hardware/model readings, not wall-outlet measurements; CPU-package readings may include the integrated GPU. Values from overlapping sensors are never added to system power.
-- **M6 + macOS 27.2 (26B123):** CPU power uses a CLPC aggregate identified in the exact Apple firmware. Driver and OS build must match; unknown mappings stay unavailable. On macOS 27, legacy CPU energy is not trusted as a fallback because those counters can freeze. Existing SMC fallbacks remain. Firmware identity and automated tests are verified; runtime measurement still needs confirmation on the reporting M6.
-- The Power page shows only system, CPU and GPU power. The unsupported fan-watt card has been removed; no wattage is guessed from RPM. Fan RPM remains on the Fan page and in the menu bar panel, including genuine 0 RPM readings. Opening the Fan page does not request administrator access or change fan mode. Other unavailable/stale power values show `—`, not zero.
-- Sampling follows the existing live-monitoring lifecycle, approximately every 3 seconds, including while other tabs are selected. Up to one hour stays in memory; sleep/paused monitoring leaves gaps, and quitting clears it. No administrator prompt, new helper, disk history or telemetry is involved.
-- Sensor availability varies by hardware/macOS; sandboxed builds leave these private-API readings unavailable.
-
-### Installer ZIP detection
-
-Ordinary project/photo ZIPs are no longer classified as installers merely because a parent directory ends in `.app`, `.pkg`, `.mpkg` or `.dmg`. Detection now requires an installer file or standard bundle metadata, and ignores Finder metadata. This closes a remaining edge case in the earlier 0.3.0 fix.
-
-## 1.0 feature highlights
-
-- **Core temperatures:** the Fan page shows CPU/GPU temperature summaries and individual available sensors. Recognized Intel core keys get core numbers; Apple Silicon and unknown mappings retain their sensor keys. Missing physical cores are never filled with estimated or duplicate temperatures.
-- **Optional uninstall watcher:** offered on first launch and installable/removable in Settings. A separate macOS login item watches `/Applications` and `~/Applications`, even after WonderBox quits. Deleting an app or moving it to the Trash in Finder opens a related-file review; files only move to the Trash after explicit confirmation.
-- **Compact window:** the menu-bar/Dock shortcut panel shows CPU/GPU temperatures and the estimated reclaimable amount for the existing default Quick Clean categories, refreshed after cleanup. Actual reclaimed space can differ.
-- **Automatic cleanup:** off by default, with a first-visit prompt on the Cleanup page. Choose a cache threshold (128 MB–100 GB), an interval (1 hour–30 days), or either condition. Configure or disable it from Cleanup or Settings.
-
-### 1.0.1 uninstall fixes
-
-- Both uninstall interfaces have Select All / Deselect All. Discovery appears before background size measurement; late size results preserve selection. Confirmation no longer repeats the full related-file scan.
-- The application list no longer walks every bundle before displaying it. After uninstall, only the affected application is updated instead of rescanning the complete inventory.
-- Both interfaces now try WonderBox's own Trash API before Finder. Cookie permission denials lead to Full Disk Access guidance, not repeated administrator prompts. Unreadable directories no longer produce guessed Cookie filenames.
-- **After updating, click Restart Plugin in Settings** to replace the already-running watcher. Pending reviews are preserved.
-
-### Background behavior and cleanup scope
-
-The watcher uses recursive FSEvents notifications, with a 30-second fallback check. A bookmark confirmed in Trash is queued immediately instead of waiting 30 seconds; unconfirmed path disappearance retains an eight-second app-replacement grace period. It accounts for ordinary app replacement, rename and duplicate-install cases, and uses bookmarks to distinguish relocation from Trash. Directory read failures are not evidence of removal. It neither deletes files nor requests administrator access; the main app rechecks whether the removed app is running, restored or reinstalled before cleanup. macOS may require approval in **System Settings → General → Login Items & Extensions**. Watching runs while the user is logged in. Permanently deleted bundles may lack component metadata; the review reports incomplete coverage.
-
-Automatic cleanup checks every five minutes **while WonderBox is running**, including when only the menu bar remains. Quitting pauses it; reopening resumes checks with the saved settings. Enable **Launch at login** separately for automatic startup. Unattended cleanup includes only identified idle apps' rebuildable caches. Unknown owners, symlinks, messaging caches, system caches, downloads, backups, application data and the Trash are excluded. Cleanup operations are serialized and running apps are rechecked between cache items. Turning it off stops subsequent items after the current filesystem operation finishes.
-
-The watcher requires the complete `.app` from `./scripts/package_app.sh`; `swift run` does not embed a registrable login item. Published downloads remain ad-hoc signed and are not notarized; see [Distribution](docs/DISTRIBUTION.md).
-
-![WonderBox overview page showing CPU, memory, disk, network, battery and uptime](docs/screenshots/overview.png)
-
-> The interface supports English and Simplified Chinese. Scans and diagnostic logs stay on-device. Update checks contact GitHub; logs are shared only if you export and send them yourself.
-
-## Why WonderBox
-
-Most "Mac cleaners" show you a big green number and hope you don't check. WonderBox is built the other way around:
-
-- **Memory optimization that works on compressed memory.** `purge` only drops file cache, so tools that rely on it leave the "Compressed" figure untouched. WonderBox's root helper issues the same kernel memory-pressure broadcast macOS uses, so every running app trims its caches — and the compressed pages behind them are freed too. Then it reports the before/after per category and names the apps that responded.
-- **Per-app memory you can act on.** Helper processes are rolled up into their host app (Chrome's 40 renderers show as one line), with an estimate of how much of each app is sitting in the compressor or swap. Quit or force-quit from the same row.
-- **Cleanup that finds the tens of gigabytes, not the megabytes.** Package-manager caches, Chromium/Electron web caches, sandboxed container caches, simulator and DeviceSupport files — the places that actually fill a developer's disk.
-- **Honest numbers.** Lower bounds are shown as `≥` when a size estimate times out. Results say what changed, or say plainly that nothing did.
-- **Safety by construction.** Every deletion is checked against a per-category whitelist of roots and path shapes. User data (chat databases, documents, Docker VMs, toolchains) is never a candidate. Anything that isn't a rebuildable cache goes to the Trash.
+Scans and diagnostics stay on this Mac. Update checks contact GitHub; exported logs are shared only when you send them. No account, telemetry or automatic log upload.
 
 ## Features
 
-### Memory
+### Menu bar: CPU, RAM and system power
 
-![Memory page with Activity Monitor categories, pressure level and a per-app footprint ranking](docs/screenshots/memory.png)
+In **Settings → Always Available**, enable any combination of:
 
-- Activity Monitor's categories — App, Wired, Compressed, Cached Files, Available — plus swap usage and the kernel's pressure level
-- Per-app physical footprint ranking with the compressed/swapped share of each app, and graceful or force quit
-- One-click optimization: system-wide memory-pressure broadcast, then file-cache purge, with a per-category before/after report
-- The overview health banner reflects memory pressure, not just thermal state
+- **Show CPU usage in menu bar** — overall processor utilization, 0–100%.
+- **Show memory usage in menu bar** — App + Wired + Compressed as a fraction of physical memory.
+- **Show system power in menu bar** — the Power page's system sensor, in watts, for example `PWR 18.3 W`.
 
-### CPU and GPU
+<p><img src="docs/screenshots/menubar-label.png" width="270" alt="Live CPU, RAM and system power in the menu bar"></p>
 
-- Full-width usage charts show a rolling 60-second window with time/percentage axes. Missing GPU readings and sampling gaps are not drawn as idle time.
-- Live per-application rankings, including helper processes, refreshed every 3 seconds; search, quit and force quit from the list
-- CPU follows Activity Monitor's convention: one occupied core is 100%, so multi-core apps can exceed 100%
-- GPU process usage comes from driver-provided context counters where available; unsupported drivers show `—`, not a fabricated zero. Concurrent contexts can total more than the overall device utilization
-- Uptime includes sleep, matching System Information's “Time since boot”
+All three are **independent and off by default**. A combined label looks like `CPU 12% · RAM 64% · PWR 18.3 W`. Changes apply immediately and persist after relaunch. Hiding the shortcut preserves your choices.
 
-### Space cleanup
+The label refreshes about every **3 seconds**, including with the main window closed. Only enabled readings are sampled; power reads the SMC **PSTR** system sensor without starting CPU/GPU energy subscriptions, process scans or power history. Disabling all values or hiding the shortcut stops this sampler. Sleep clears values; wake starts fresh. Missing sensors show `—`, and CPU waits for a measured baseline rather than showing a made-up zero.
 
-![Deep cleanup showing package-manager caches and browser caches](docs/screenshots/cleaner-deep.png)
+Choose **Color** or **Monochrome** for the icon; monochrome follows the system menu-bar appearance. Click it to open the compact dashboard:
 
-**Standard scan** — user caches (including sandboxed app containers), logs, Xcode DerivedData, installers older than 7 days, Trash.
+<p align="center"><img src="docs/screenshots/menubar.png" width="360" alt="Compact dashboard with temperatures, fan RPM, keep-awake and quick actions"></p>
 
-**Deep scan** adds:
+The panel includes CPU/memory/disk usage, available CPU/GPU temperatures, fan RPM, keep awake, memory optimization and Quick Clean with a reclaimable-space estimate. The estimate is refreshed after cleanup; actual reclaimed space may differ.
 
-| Category | What it covers |
+### CPU, GPU and memory
+
+![Memory categories, memory pressure and application footprint ranking](docs/screenshots/memory.png)
+
+- **CPU/GPU:** rolling 60-second charts with time/percentage axes; searchable app rankings include helper processes and offer quit/force quit. In the *app ranking*, one fully occupied CPU core is 100%, so multi-core apps can exceed 100%. GPU context totals are not the same as whole-device utilization; unsupported drivers show `—`.
+- **Memory:** App, Wired, Compressed, Cached Files and Available, plus swap and the kernel's memory-pressure level. Per-app physical footprint rolls helper processes into their host app and estimates compressed/swapped memory.
+- **Optimization:** the privileged helper requests system-wide memory-pressure relief, then purges file cache. The result reports per-category before/after values and app responses. Reclaimed memory varies with workload; no fixed saving is promised.
+- **Overview:** CPU, memory, disk, network, battery where present and uptime including sleep. The health banner takes memory pressure into account, not only thermals.
+
+<table><tr>
+  <td width="50%"><img src="docs/screenshots/cpu.png" alt="CPU history and per-app ranking"></td>
+  <td width="50%"><img src="docs/screenshots/gpu.png" alt="GPU history and per-app ranking"></td>
+</tr></table>
+
+### Power and temperatures
+
+![System, CPU and GPU watts with power history](docs/screenshots/power.png)
+
+- **Power:** current system, CPU and GPU watts, plus **1-minute / 15-minute / 1-hour** history, observed-interval averages and peaks. History is held in memory while live monitoring runs; pauses/sleep leave gaps and quitting clears it. The menu-bar system reading has its own lightweight lifecycle and does not keep this history running.
+- **Sources:** optional IOReport energy counters divided by the actual interval, plus supported SMC readings. System power comes from PSTR, not CPU + GPU, battery charging rate or adapter input. Readings are hardware/model estimates, **not wall-outlet measurements**; component scopes may overlap. CPU-package fallbacks are labeled.
+- **Compatibility:** available counters vary by Mac and macOS. Missing, invalid or stale values show `—`; a measured zero remains zero. Sandboxed builds leave private-API power readings unavailable. The 1.2.3 M6/macOS 27.2 path is exact-build gated; runtime measurement on the reporting M6 remains unverified. See [compatibility notes](docs/DISTRIBUTION.md#m6--macos-272-cpu-energy-123).
+- **Fan page:** CPU/GPU temperature summaries, individually available sensors and live RPM. Recognized Intel sensors receive core numbers; other sensors retain their keys. No missing cores or fan watts are invented from estimates.
+
+<table><tr>
+  <td width="50%"><img src="docs/screenshots/fan.png" alt="Fan RPM, control modes and temperature sensors"></td>
+  <td width="50%"><img src="docs/screenshots/awake.png" alt="Keep-awake duration and display options"></td>
+</tr></table>
+
+Fan control offers automatic, quiet, balanced, performance and custom modes **where hardware allows writes**; opening the page only reads sensors. Keep awake uses IOKit assertions, with 30-minute / 1-hour / 2-hour / indefinite durations and an optional keep-display-on setting.
+
+### Cleanup, without the guessing
+
+![Deep cleanup with selectable categories](docs/screenshots/cleaner-deep.png)
+
+| Scan | Scope |
 | --- | --- |
-| Package-manager caches | npm, pnpm, yarn, bun, uv and other `~/.cache` tools, Cargo registry, Go modules, Gradle, Maven, CocoaPods — download caches only; toolchains and installed versions are never touched |
-| Browser & Electron caches | Chromium `Cache`, `Code Cache`, `GPUCache`, Service Worker `CacheStorage` and friends inside any profile or Electron user-data folder; skipped while the owning app is running |
-| Developer deep caches | Simulator caches, iOS/watchOS/tvOS DeviceSupport, documentation cache, Previews devices |
-| Application leftovers | Data left behind by apps that are no longer installed (90-day cutoff, bundle-id heuristics) |
-| Device backups, partial downloads | Local iPhone/iPad backups; `.download`/`.crdownload`/`.part` files older than 7 days |
+| Standard | User and sandbox-container caches, logs, Xcode DerivedData, installers older than 7 days, Trash |
+| Deep additions | Package-manager caches; Chromium/Electron caches; simulator and DeviceSupport files; likely app leftovers; local device backups; partial downloads |
+| Separately opt-in | WeChat and WeCom application/web caches, excluding chat databases and downloaded attachments |
 
-Every category expands to item level so you can keep one tool's cache and drop another:
+Package-manager coverage includes npm, pnpm, yarn, bun, uv, Cargo, Go, Gradle, Maven and CocoaPods download caches—not installed runtimes, toolchains or Docker virtual disks. ZIPs count as installers only with actual installer content or standard bundle metadata, not merely an installer-looking parent directory.
 
-App-cache details show application names, icons and combined cache sizes; expand an app to select individual folders. Search narrows the app list, and Select All / Deselect All applies to visible results. Done saves changes; Close or Escape keeps the previous selection. ZIP archives count as installers only when they contain an app, installer package or disk image.
+![Cleanup details with per-application grouping and folder selection](docs/screenshots/cleaner-detail.png)
 
-Click **Name** or **Size** in cleanup details to sort application groups and their expanded cache folders. Size starts largest-first; click again to reverse. Selection and expanded groups are preserved, and unknown sizes stay last.
+Expand categories to choose individual items. App caches are grouped by app name/icon; search and **Select All / Deselect All** affect visible results. Click **Name** or **Size** to sort while preserving selection and expansion. **Done** saves the draft; **Close / Escape** discards it. Partial sizes carry `≥`; unknown sizes are not presented as zero.
 
-**WeChat and WeCom caches** have separate opt-in categories in standard and deep scans. Only explicit application/web cache directories are listed, not chat databases or downloaded attachments; caches go to the Trash, and running apps must be quit before cleanup. Background helpers and apps started after confirmation are checked again before moving each cache. Supported layouts include regular caches, sandbox/group containers, WebKit/Qt profiles and known legacy account/version cache folders.
+Paths are revalidated against category-specific roots and shapes. Running browser/Electron apps are skipped; messaging caches require the app to quit and go to the Trash. Review selected items before cleaning: rebuildable caches may be permanently removed, and emptying the Trash is irreversible.
 
-![Item-level selection inside the package cache category](docs/screenshots/cleaner-detail.png)
+### App uninstall and related files
 
-### Application uninstall
+![Application inventory and grouped related-file review](docs/screenshots/applications.png)
 
-![Application uninstall with related files](docs/screenshots/applications.png)
+- Browse `/Applications` and `~/Applications`; search, filter large/unused apps and sort. Total footprint includes **the app bundle + discovered related data**, including unchecked items.
+- Related files are grouped by purpose with folder previews, group selection and **Select All / Deselect All**. Unchecked files stay put; confirmation reports what will be retained.
+- Discovery uses bundle/component identifiers, exact product names, container metadata, application-group declarations and bounded Electron metadata. Shared groups, migration folders, recovery data and ambiguous/shared components require review and default unchecked. macOS shared data and symlink traversal are excluded. See the [coverage matrix](docs/RELATED_FILES.md).
+- Results appear before background sizing finishes. Small, cancellable budgets keep large directories responsive; `≥` means a lower bound. **Calculate Full Size** measures only the selected app and can be stopped. Lists/details share a short-lived cache; refresh invalidates it.
+- Selected files move to the **Trash**: ordinary user permissions first, then Finder for eligible failures. No uninstall daemon or stored password. Errors preserve failed items for retry, distinguish Full Disk Access from Finder Automation, and report the actual system result.
+- Quit the app before uninstalling. After removal, WonderBox checks selected paths and rescans; new leftovers are not silently selected. Selecting an app already in the Trash reviews related files without moving its bundle again.
 
-Inventory of `/Applications` and `~/Applications` with size, install date and last-use date from Spotlight; large/stale filters; related caches, preferences, containers and saved state listed per app; everything goes to the Trash.
+### Optional background features
 
-Related files are grouped in expandable folders with group selection and content previews. Normal user permissions are tried first; failed items are retried together through Finder's Move to Trash command (Apple Events). Finder handles any necessary authentication; WonderBox does not install or authorize its background service for uninstalling and never stores passwords.
+| Feature | Default | When it runs | What it does |
+| --- | --- | --- | --- |
+| Uninstall watcher plugin | Not installed until accepted | While logged in, even after WonderBox quits | Detects app removal and opens a related-file review; **never deletes without confirmation** |
+| Automatic cleanup | Off | Checks every 5 minutes while WonderBox runs, including menu-bar-only use | Cleans only identified idle apps' rebuildable caches when your threshold/interval is met |
+| Launch at login | Off | At login, if enabled separately | Starts WonderBox; distinct from the watcher plugin |
 
-Discovery also covers per-app recent-document records, autosave folders, default XDG data leaves, exact product leaves in shared updater/crash caches, and external plugins with matching bundle identifiers. Recovery data, cross-platform data and plugins are opt-in. The detail and removal confirmation warn about unchecked items and their measured size; Review Selection preserves the choices without automatically selecting shared data. See the [coverage and research matrix](docs/RELATED_FILES.md) for evidence and exclusions.
+![Uninstall watcher, automatic cleanup and startup settings](docs/screenshots/settings-background.png)
 
-Discovery uses bundle identifiers, original/localized product names and exactly named directories directly under `~/Library`, plus product-named logs and preferences. It also inspects embedded Helpers, XPC services, extensions and login-item bundles, reads application-group entitlements from the code signature, and recognizes launch plists whose executable points inside the selected app. Exact product-path probes one level below Application Support vendor folders find matching leaves without enumerating other apps' data or selecting the whole vendor directory. Shared groups, independently identified components, declared privileged helpers and vendor-subfolder matches show their association source and are unchecked by default for review. There is no per-app whitelist; a six-product fixture matrix tests different names, identifiers and storage layouts, alongside near-name/sibling/symlink negative cases.
+Configure the watcher and automatic cleanup in **Settings**; Cleanup also has **Automatic Cleanup Settings**. Choose a cache threshold from **128 MB–100 GB**, an interval from **1 hour–30 days**, or either condition. Unattended cleanup excludes unknown owners, running apps, symlinks, messaging/system caches, downloads, backups, app data and the Trash. Disabling it stops subsequent items after the current filesystem operation finishes; quitting pauses checks.
 
-For Electron apps, bounded reads of the root `package.json` (loose or ASAR-packed) recover the internal runtime product name. The declared bootstrap file is also checked for explicit sibling-directory migration references near a `userData` lookup; matching legacy product data in Application Support is listed with a review label and remains unchecked, as other editions may still use it. This is evidence-based, not an app-name prefix deletion rule. Dependencies, assets and source maps are not searched, JavaScript is never executed, and archives are not unpacked. Reads are capped at a 2 MiB archive index, 64 KiB package metadata and 1 MiB bootstrap; malformed offsets, links, path traversal and oversized files are ignored. These names remain available for verification after the app bundle is moved.
+The watcher handles ordinary app updates, renames, moves and duplicate installs; removal evidence is rechecked before cleanup. Permission failures are not treated as uninstalls. macOS may ask you to approve it in **General → Login Items & Extensions**. After updating WonderBox, use **Restart Plugin** to load the new bundled watcher while preserving pending reviews. It requires a packaged `.app`, not `swift run`.
 
-Shared macOS roots such as Mail, Messages and Keychains are excluded, and symbolic links are not followed. Discovery is based on identifiable evidence, not a guarantee of every arbitrary custom data path. The app list and size sorting show bundle plus discovered related data, including unchecked items; the detail shows the breakdown. The related-file list appears before recursive sizing finishes, and removal does not wait for size measurements. Automatic sizing uses one utility worker with a shared per-app budget of 60 ms / 1,500 entries, not a full walk of every large chat/cache directory. `≥` denotes a lower bound and unmeasured folders are labeled explicitly. **Calculate Full Sizes** starts a cancellable, throttled traversal of the selected app only; switching apps or tabs stops the old workers. Session-only caches reuse metadata and sizes across inventory/detail scans, expire after short intervals, and are cleared on refresh/removal. Batched UI updates, cached sorting/summaries and O(n log n) directory dedup avoid repeated expensive main-thread work. Shared and nested data roots are counted once in the list's combined total; selecting fewer files changes the removal amount, not the application's detected footprint.
+### Disk analysis and consistent refresh
 
-Sandbox containers are found by bundle identifier and container metadata, including UUID-named containers. Unreadable locations produce an access warning rather than an empty-success result. Apps already in the Trash can be selected to remove only their related files. Uninstall checks that selected sources disappeared, rescans for remaining files, and keeps failures available for retry; newly discovered files are unchecked until reviewed. Quit the app before uninstalling to prevent it from recreating its data.
+![Disk analysis with folder sizes and navigation](docs/screenshots/storage.png)
 
-Uninstall reports the actual system error, retains failed items for retry and provides Details and Show Remaining Items in Finder actions. Cancelling the system operation does not trigger another authorization attempt. Finder Automation permission is requested only when needed; denial shows the Automation settings action, not a Full Disk Access warning.
+Browse folders, sort by size/name/date, reveal items in Finder or move selections to the Trash. File lists appear first; up to four cancellable background tasks fill in folder sizes. Revisits use a 60-second cache; **Rescan** forces fresh results. Cloud-sync directories are excluded from recursive sizing to avoid triggering downloads.
 
-### Disk analyzer
+The toolbar refresh button and **⌘R** refresh the **current page**: processor/memory metrics and rankings, uninstall inventory and related files, cleanup scan, current disk folder, or settings status. Refresh does not clean files, optimize memory, change fan mode or extend keep awake.
 
-The toolbar refresh button and **⌘R** refresh the current tab, not just Overview. CPU/GPU and Memory refresh both system metrics and app rankings; Uninstaller rescans apps and selected-app related files; Cleanup rescans without cleaning; Disk Analyzer bypasses cached sizes for the current directory. Settings reloads permission/login-item status, log size and update availability. Refreshing never starts optimization, changes fan mode or extends a keep-awake session.
+### Settings, updates and diagnostics
 
-![Disk analyzer listing home directory children by size](docs/screenshots/storage.png)
+![Settings with appearance, language and menu-bar controls](docs/screenshots/settings.png)
 
-Drill into any folder level by level: metadata rows appear first, then four cancellable background workers fill in folder sizes. Navigation stays available while sizing; returning to a recently scanned folder uses a bounded 60-second cache, and Rescan forces a refresh. Incomplete totals are shown as lower bounds. Sort by size/name/date, reveal in Finder or move selected items to the Trash. Cloud-synced folders are excluded from automatic traversal.
+- Follow system/light/dark appearance, choose one of four accents and switch English/简体中文 (relaunch required). Configure menu-bar labels, close-window behavior, startup and permissions independently.
+- **Software Update** or **WonderBox → Check for Updates…** checks GitHub stable releases. Automatic checking is on by default, at most once per 24 hours including failed attempts. Downloads support progress/cancel/retry and verify size and SHA-256 before saving. Archives retain quarantine metadata and are **not automatically installed or run**; quit, unzip and replace the app manually.
+- **Diagnostics** records local operation results and numeric error codes, not filenames, paths, usernames, file contents, commands, tokens or high-frequency monitoring data. Up to four 512 KiB files, 2 MiB total, with a 7-day retention limit. Disabling logging clears local logs.
+- **Export Logs…** creates a ZIP containing logs and basic app/macOS/architecture information; review it before sharing. No automatic upload. **Clear Logs…** does not delete ZIPs you previously exported.
 
-### Fan control, keep awake, menu bar
+![Software updates and local diagnostics](docs/screenshots/settings-diagnostics.png)
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/fan.png" alt="Fan page with live RPM gauges and control modes"></td>
-    <td width="50%"><img src="docs/screenshots/awake.png" alt="Keep-awake page with duration and display options"></td>
-  </tr>
-</table>
+## Installation
 
-![Menu bar dashboard with CPU, memory, disk, fan RPM, keep awake and quick actions](docs/screenshots/menubar.png)
+Requires **macOS 14 or later**, Apple Silicon or Intel. Download the ZIP from [Releases](https://github.com/jasonwong1991/WonderBox/releases/latest), unzip and move `WonderBox.app` to Applications.
 
-- Live fan RPM from AppleSMC; quiet/balanced/performance/custom modes on Macs that expose writable fan control (Apple Silicon `Ftst` unlock included), always revertible to automatic
-- Keep-awake with a 30 min / 1 h / 2 h / indefinite timer and optional display wake, using public IOKit assertions
-- Menu bar dashboard: CPU, memory, disk, fan RPM, keep-awake toggle, memory optimization and one-click cleanup without opening the window
-- Choose **Color** or **Monochrome** under **Settings → Always Available → Menu bar icon**. Color preserves the original icon (the default); monochrome follows the system menu bar appearance. Changes apply immediately and are remembered across launches.
-- System / light / dark appearance, four accent colours, launch at login
-- A dedicated Startup settings area with approval status and an entry point to macOS Login Items management; external changes are reflected when returning to WonderBox
-
-![Settings page with appearance, language, menu bar, launch at login and permission status](docs/screenshots/settings.png)
-
-### Updates and diagnostics
-
-- **Settings → Software Updates**, or **WonderBox → Check for Updates…**: check GitHub's latest stable release, read release notes and choose where to download the ZIP. Automatic checks are enabled by default and throttled to once per 24 hours (including failed attempts); turn them off in Settings. If the REST API is rate-limited, the official latest-release redirect and `SHA256SUMS` provide a fallback. Checks send no scan results or diagnostics, use no account/token and store no cookies.
-- Downloads show progress, support cancellation/retry, and require the expected size plus a SHA-256 digest from GitHub or the release's `SHA256SUMS`. Files are saved atomically after verification, retain macOS quarantine metadata and are never unpacked or executed automatically. Quit WonderBox, unzip the archive and replace the app manually. Direct builds only; App Store builds use the Store's update mechanism.
-- **Settings → Diagnostics**: lightweight local operation results and numeric error codes help diagnose permissions, fan reads, cleanup and update failures. Logging is enabled by default; disabling it clears the logs. Four rotating files of at most 512 KiB each (2 MiB total) retain events for no longer than 7 days. No high-frequency monitoring samples, filenames, paths, usernames, account details, commands, tokens or file contents are logged. WonderBox's diagnostic directory is excluded from routine log cleanup.
-- **Export Logs…** creates a ZIP of the bounded logs plus app/macOS versions and CPU architecture; it also works when logging is off. Review the ZIP and attach it to your issue yourself. No automatic upload, telemetry or crash-reporting service. **Clear Logs…** removes local logs, not previous exports.
-
-## Install
-
-Requirements: macOS 14 or newer, Apple Silicon or Intel.
-
-**Download:** grab `WonderBox-x.y.z.zip` from the [latest release](https://github.com/jasonwong1991/WonderBox/releases/latest), unzip, and drag `WonderBox.app` to Applications.
-
-The release build is signed ad hoc, not notarized, so the first launch is blocked by Gatekeeper. Either right-click the app → Open, then confirm in System Settings › Privacy & Security › "Open Anyway", or clear the quarantine flag once:
+Current downloads are **ad-hoc signed and not Apple-notarized**. macOS may block first launch. After checking that you downloaded this project's release, use **System Settings → Privacy & Security → Open Anyway** if offered. The command below removes quarantine from that app only; it does not verify the publisher:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/WonderBox.app
 ```
 
-**Build from source** (Xcode 16 or newer):
+When upgrading, quit the old app before replacing it. If the watcher is installed, click **Restart Plugin** afterwards. Do not overwrite a running app.
+
+### Permissions, only when needed
+
+| Feature | Access |
+| --- | --- |
+| Basic monitoring, keep awake, app inventory | No administrator authorization |
+| Broad home/protected-folder scans | Optional Full Disk Access for the app copy you actually run |
+| Trash sizing/emptying and eligible protected-file removal | Finder Automation; Finder may request system authentication |
+| Fan writes and memory optimization | Administrator authorization to install/update the fixed-command helper |
+| Selected system-cache cleanup | Per-run administrator authorization |
+| Optional watcher / launch at login | macOS Service Management; login-item approval may be required |
+
+Root privileges do not replace privacy permissions. Uninstall does not install the helper. The helper validates the client's signing identity and user ID and accepts fixed operations, not arbitrary shell commands.
+
+## Build and test
+
+Use Xcode's macOS SDK and Swift 6:
 
 ```bash
 git clone https://github.com/jasonwong1991/WonderBox.git
 cd WonderBox
-swift build
 swift test
+python3 -m unittest discover -s Tests/Packaging
+python3 scripts/sync_localization.py --check
 ./scripts/package_app.sh
 open build/WonderBox.app
 ```
 
-The package builds `WonderBox`, two maintenance helpers and the optional uninstall watcher login item. `package_app.sh` produces a locally signed `build/WonderBox.app` with the generated icon, compiled string catalogs and bundled helpers; `UNIVERSAL=1 ./scripts/package_app.sh` builds the Apple Silicon + Intel binaries used for releases.
+`package_app.sh` builds a locally signed app with compiled string catalogs, generated icons, maintenance helpers and the embedded watcher. Set `UNIVERSAL=1` for Apple Silicon + Intel binaries. `swift run` is useful for development but does not create a registrable watcher bundle or compile the string catalogs into app resources. Packaging does not publish a release.
 
-## Languages
+The current release profile is **direct distribution**. App Store distribution requires excluding private sensor/helper implementations and restricting file operations to sandbox grants; the presence of an entitlements file does not make the current bundle Store-ready. See [distribution, API boundaries and hardware acceptance](docs/DISTRIBUTION.md).
 
-WonderBox ships in English and Simplified Chinese and follows the system language; Settings › Language overrides it per app. Strings live in a single catalog, `Sources/WonderBox/Resources/Localizable.xcstrings`, with English as the source language.
+### Localization and contributing
 
-To add a language:
+Strings live in `Sources/WonderBox/Resources/Localizable.xcstrings` and `InfoPlist.xcstrings`. To add a language, translate both catalogs, add its code to `LANGUAGES` in `scripts/sync_localization.py` and `AppLanguage` in `Sources/WonderBox/Core/Localization.swift`, then run localization checks and tests. Running the sync script without `--check` extracts source strings and updates the key list.
 
-1. Open `Localizable.xcstrings` (and `InfoPlist.xcstrings`) in Xcode's String Catalog editor, or edit the JSON directly, and add the new language code under each key's `localizations`.
-2. Add the code to `LANGUAGES` in `scripts/sync_localization.py` and to the `AppLanguage` enum in `Sources/WonderBox/Core/Localization.swift` so it appears in the picker.
-3. Run `scripts/sync_localization.py --check`; it fails on untranslated keys. `swift test` checks the same thing plus format-specifier consistency.
+Bug reports should include app/macOS version, Mac model, expected/actual behavior and steps to reproduce. For sensor issues, distinguish unavailable (`—`) from measured zero. Attach diagnostics only after reviewing the export. Community: [LinuxDo](https://linux.do).
 
-`scripts/sync_localization.py` (no flags) asks the compiler for every localizable string in source and adds new keys to the catalog, so you never hand-maintain the key list.
+## License and credits
 
-## Permissions
-
-WonderBox asks for exactly what a feature needs, when you first use it:
-
-| Feature | Permission | When |
-| --- | --- | --- |
-| Monitoring, keep awake, app inventory, standard cleanup | none | — |
-| Trash size and emptying | Automation (Finder) | first cleanup scan |
-| Full home-directory scans | Full Disk Access (optional, user-controlled) | onboarding or Settings |
-| Fan control, memory optimization | Administrator authorization to install or update the shared helper | first privileged action |
-| Protected app removal | macOS's Finder-style Trash operation; system authentication if needed | when normal removal fails |
-| `/Library/Caches` cleanup | Administrator password per run | when that category is selected |
-
-The helper daemon is a fixed-command service reachable over a root-owned Unix socket. It verifies the caller's signing identity and user ID before accepting fan, memory-maintenance or restricted Trash requests; it never executes caller-supplied shell commands. Installing or updating the helper, or changing the app's ad-hoc signing identity, requires administrator authorization.
-
-## Distribution profiles
-
-The core monitor and awake features use public APIs. Application and cleanup operations use public Foundation APIs, but broad user-Library access is restricted by App Sandbox.
-
-- **Direct** (what `package_app.sh` builds): bundles `WonderFanHelper`; the helper daemon (protocol v6) performs fan writes and memory-pressure broadcast/purge. Uninstall uses the system Trash operation instead. Full Disk Access can be enabled for broad local scans.
-- **App Store:** enable `WonderBox-AppStore.entitlements`, omit the fan helper/CSMC source, and retain user-selected file access. Broad cleanup categories must use folder selection with security-scoped bookmarks or be disabled.
-
-See [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md) for the capability matrix and release checklist.
-
-## Brand asset provenance
-
-The WonderBox app and menu bar icons are original geometric artwork generated entirely by `scripts/generate_icon.swift` and `MenuBarAppIcon` in this repository. They do not embed third-party logos, stock artwork, or copied image assets. SF Symbols are used only as native macOS interface symbols inside the app. Application icons visible in screenshots belong to their respective owners.
-
-## Community
-
-[LinuxDo](https://linux.do)
-
-## License
-
-[MIT](LICENSE)
+[MIT](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md). WonderBox's app/menu-bar artwork is generated in this repository; it does not embed third-party logos. SF Symbols are native macOS UI symbols. App icons visible in screenshots belong to their respective owners.

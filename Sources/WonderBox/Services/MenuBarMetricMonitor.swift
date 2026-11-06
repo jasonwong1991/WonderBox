@@ -1,8 +1,9 @@
 import AppKit
+import CSMC
 import Foundation
 
 /// The status item has its own cheap sampler: window/scene visibility must not freeze it,
-/// and keeping it alive must not keep disk, GPU, power or process scans running.
+/// and keeping it alive must not keep disk, GPU, power history or process scans running.
 @MainActor
 final class MenuBarMetricMonitor: ObservableObject {
     typealias Reader = @Sendable (MenuBarMetricOptions) async -> MenuBarResourceSample
@@ -22,8 +23,13 @@ final class MenuBarMetricMonitor: ObservableObject {
         await Task.detached(priority: .utility) {
             let cpu = options.showCPU ? SystemMonitor.cpuTicks() : nil
             let memory = options.showMemory ? SystemMonitor.memoryBreakdownReading() : nil
+            // Read only the same system sensor used by the Power page. No energy
+            // subscription, component scans, helper or estimated CPU + GPU sum.
+            let power = options.showPower && ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] == nil
+                ? PowerReading.validated(wc_smc_read_system_power(), source: "SMC · PSTR")?.watts : nil
             return MenuBarResourceSample(cpuTotal: cpu?.total, cpuIdle: cpu?.idle,
-                                         memoryFraction: memory.flatMap { $0.total > 0 ? $0.usedFraction : nil })
+                                         memoryFraction: memory.flatMap { $0.total > 0 ? $0.usedFraction : nil },
+                                         systemPowerWatts: power)
         }.value
     }, sleep: @escaping Sleeper = { try await Task.sleep(for: .seconds($0)) },
          notifications: NotificationCenter = NSWorkspace.shared.notificationCenter) {

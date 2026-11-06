@@ -29,6 +29,8 @@ typedef struct {
     double watts;
 } WCPowerReading;
 int wc_smc_read_power(WCPowerReading *readings, int capacity);
+/* Lightweight status-item reading: only PSTR, NaN when unavailable. */
+double wc_smc_read_system_power(void);
 
 /* Optional IOReport energy counters. Each reader is owned by one serial sampler. */
 typedef struct WCEnergyReader WCEnergyReader;

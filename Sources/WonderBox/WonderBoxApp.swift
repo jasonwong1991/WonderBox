@@ -12,6 +12,7 @@ struct WonderBoxApplication: App {
     @AppStorage(MenuBarIconStyle.storageKey) private var menuBarIconStyle = MenuBarIconStyle.defaultStyle
     @AppStorage(MenuBarMetricOptions.cpuKey) private var menuBarShowCPU = false
     @AppStorage(MenuBarMetricOptions.memoryKey) private var menuBarShowMemory = false
+    @AppStorage(MenuBarMetricOptions.powerKey) private var menuBarShowPower = false
     @AppStorage("awakeDuration") private var awakeDuration = AwakeDuration.oneHour.rawValue
     @AppStorage("keepDisplayAwake") private var keepDisplayAwake = false
     @Environment(\.scenePhase) private var scenePhase
@@ -30,7 +31,8 @@ struct WonderBoxApplication: App {
     }
 
     private var menuBarMetricOptions: MenuBarMetricOptions {
-        MenuBarMetricOptions(menuBarVisible: showMenuBar, showCPU: menuBarShowCPU, showMemory: menuBarShowMemory)
+        MenuBarMetricOptions(menuBarVisible: showMenuBar, showCPU: menuBarShowCPU,
+                             showMemory: menuBarShowMemory, showPower: menuBarShowPower)
     }
 
     var body: some Scene {

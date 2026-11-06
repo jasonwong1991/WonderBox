@@ -24,6 +24,7 @@ struct MenuBarMetricSettings: View {
     var isEnabled = true
     @AppStorage(MenuBarMetricOptions.cpuKey) private var showCPU = false
     @AppStorage(MenuBarMetricOptions.memoryKey) private var showMemory = false
+    @AppStorage(MenuBarMetricOptions.powerKey) private var showPower = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -31,7 +32,9 @@ struct MenuBarMetricSettings: View {
                 .accessibilityIdentifier("menubar.show-cpu")
             Toggle("Show memory usage in menu bar", isOn: $showMemory)
                 .accessibilityIdentifier("menubar.show-memory")
-            Text("CPU and RAM percentages refresh every 3 seconds, even with the main window closed. Turn off either value to save menu bar space.")
+            Toggle("Show system power in menu bar", isOn: $showPower)
+                .accessibilityIdentifier("menubar.show-power")
+            Text("CPU, RAM and system power refresh every 3 seconds, even with the main window closed. Turn off any value to save menu bar space. Power is shown in watts; unavailable sensors show —.")
                 .font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
