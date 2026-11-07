@@ -101,7 +101,7 @@ The optional status-item sampler belongs to the App, not the main-window scene o
 
 CPU uses aggregate host tick deltas; RAM reuses the existing App + Wired + Compressed calculation. Unavailable/invalid counters show a dash. Test all four display combinations, preference persistence, hidden/restored status items, color/template icons, main-window closing, sleep/wake and the existing click-to-open popup. Native MenuBarExtra fixture validation on macOS 26.5.2 covers live label updates, both icon styles and closed-window sampling; unit tests also exercise the production Mach reader. Intel/macOS 14 runtime coverage remains a separate compatibility check.
 
-## Menu-bar system power (unreleased)
+## Menu-bar system power (1.2.4)
 
 `menuBarShowPower` is an independent opt-in preference, defaulting to false just like CPU/RAM. The existing app-owned status-item timer reads only SMC PSTR through `wc_smc_read_system_power`, using the same decoder and validation as the Power page. It never substitutes CPU/GPU sums, adapter input or battery charge rate. No IOReport reader, power history, helper, fan write or administrator prompt is started by this setting. Sandboxed builds skip the sensor call and show unavailable.
 
@@ -110,6 +110,21 @@ Power-only mode samples immediately, then approximately every three seconds, eve
 Unit coverage includes all eight display combinations, watt rounding/bounds, zero versus unavailable, independent default-off persistence, power-only intervals, hidden/restored items, sleep/wake, cancelled results and settings rendering. Native read-only smoke coverage accepts an unavailable sensor rather than claiming hardware support. Before release, verify a supported Mac's menu label against the Power page's **System Power**, window-closed refresh, relaunch persistence, icon styles and English/Chinese layouts. Intel/macOS 14 and unsupported-sensor runtime checks remain separate acceptance work.
 
 On 2026-11-05, the development build on an M4 Max / macOS 26.5.2 showed the new preference off before enabling it, retained it across relaunch, and displayed live watts in the status item. With the main window closed (zero windows), the label changed from `PWR 23.3 W` to `PWR 29.8 W` over four seconds; reopening the compact dashboard still worked. This is a local lifecycle check, not cross-hardware calibration. The full 347-test suite completed with zero failures and 10 environment/opt-in skips; seven packaging tests and the universal arm64/x86_64 build also passed.
+
+## Overview system power (1.2.4)
+
+The Overview grid now includes a system-power card using the existing `PowerMonitor`
+snapshot and the same SMC PSTR reading as the Power page. The view observes the
+monitor directly, preserves measured zero, expires stale samples after ten seconds,
+and shows `—` for missing readings. Its detail action opens the Power page. Overview
+refresh requests both the ordinary metrics and power; it does not start an additional
+sampler or add watts to the generic percentage sparkline.
+
+Regression coverage includes system-versus-component readings, zero/missing/stale
+samples, pause invalidation, compact/large layouts in both appearances and the shared
+refresh action. The 2026-11-07 native screenshot pass used the installed app on an M4
+Max / macOS 26.5.2 in both languages; other hardware and macOS versions remain outside
+that runtime validation scope. No new sensor transport or privileged operation is added.
 
 ## CPU power compatibility and startup (1.2.2)
 

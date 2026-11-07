@@ -20,7 +20,7 @@
   <a href="#build-and-test">Build &amp; test</a>
 </p>
 
-![WonderBox overview: CPU, memory, storage, network and system status](docs/screenshots/overview.png)
+![WonderBox overview: CPU, memory, storage, network, system power and status](docs/screenshots/overview.png)
 
 Screenshots show the current source build on one Mac, with chosen settings—not necessarily defaults. Readings and sensor availability vary by device. See the [capture notes](docs/SCREENSHOTS.md).
 
@@ -33,8 +33,8 @@ Screenshots show the current source build on one Mac, with chosen settings—not
 | System/CPU/GPU power history | App uninstall and related-file review | Opt-in uninstall watcher and automatic cleanup |
 | Temperatures and fan RPM | Folder-by-folder disk analysis | English/简体中文, light/dark themes, four accents |
 
-**Release:** [1.2.3 · build 123](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.3) · [release notes](docs/releases/v1.2.3.md).
-**New in the working tree:** optional **system power in the menu bar**, off by default. Build from source to try it; the linked 1.2.3 archive predates this addition.
+**Release:** [1.2.4 · build 124](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.4) · [release notes](docs/releases/v1.2.4.md).
+**New in 1.2.4:** a **system-power card in Overview**, plus optional **system power in the menu bar**, off by default. The README screenshots now use light appearance, except for the theme-controls example.
 
 Scans and diagnostics stay on this Mac. Update checks contact GitHub; exported logs are shared only when you send them. No account, telemetry or automatic log upload.
 
@@ -48,7 +48,7 @@ In **Settings → Always Available**, enable any combination of:
 - **Show memory usage in menu bar** — App + Wired + Compressed as a fraction of physical memory.
 - **Show system power in menu bar** — the Power page's system sensor, in watts, for example `PWR 18.3 W`.
 
-<p><img src="docs/screenshots/menubar-label.png" width="270" alt="Live CPU, RAM and system power in the menu bar"></p>
+<p><img src="docs/screenshots/menubar-label.png" width="256" alt="Live CPU, RAM and system power in the menu bar"></p>
 
 All three are **independent and off by default**. A combined label looks like `CPU 12% · RAM 64% · PWR 18.3 W`. Changes apply immediately and persist after relaunch. Hiding the shortcut preserves your choices.
 
@@ -67,7 +67,7 @@ The panel includes CPU/memory/disk usage, available CPU/GPU temperatures, fan RP
 - **CPU/GPU:** rolling 60-second charts with time/percentage axes; searchable app rankings include helper processes and offer quit/force quit. In the *app ranking*, one fully occupied CPU core is 100%, so multi-core apps can exceed 100%. GPU context totals are not the same as whole-device utilization; unsupported drivers show `—`.
 - **Memory:** App, Wired, Compressed, Cached Files and Available, plus swap and the kernel's memory-pressure level. Per-app physical footprint rolls helper processes into their host app and estimates compressed/swapped memory.
 - **Optimization:** the privileged helper requests system-wide memory-pressure relief, then purges file cache. The result reports per-category before/after values and app responses. Reclaimed memory varies with workload; no fixed saving is promised.
-- **Overview:** CPU, memory, disk, network, battery where present and uptime including sleep. The health banner takes memory pressure into account, not only thermals.
+- **Overview:** CPU, memory, disk, network, battery where present, uptime including sleep and system power in watts. The power card shares the Power page’s sensor and links to its details; missing or stale readings show `—`. The health banner takes memory pressure into account, not only thermals.
 
 <table><tr>
   <td width="50%"><img src="docs/screenshots/cpu.png" alt="CPU history and per-app ranking"></td>

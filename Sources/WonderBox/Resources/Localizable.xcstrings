@@ -6115,6 +6115,16 @@
         }
       }
     },
+    "View power details": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看功耗详情"
+          }
+        }
+      }
+    },
     "View release notes on GitHub.": {
       "localizations": {
         "zh-Hans": {

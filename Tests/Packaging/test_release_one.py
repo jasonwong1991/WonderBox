@@ -8,8 +8,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 class ReleaseOnePackagingTests(unittest.TestCase):
     def test_stable_version_and_url_dispatch(self):
         info = plistlib.loads((ROOT / 'Sources/WonderBox/Resources/Info.plist').read_bytes())
-        self.assertEqual(info['CFBundleShortVersionString'], '1.2.3')
-        self.assertEqual(info['CFBundleVersion'], '123')
+        self.assertEqual(info['CFBundleShortVersionString'], '1.2.4')
+        self.assertEqual(info['CFBundleVersion'], '124')
         self.assertIn('wonderbox', info['CFBundleURLTypes'][0]['CFBundleURLSchemes'])
 
     def test_login_item_identity_and_background_mode(self):

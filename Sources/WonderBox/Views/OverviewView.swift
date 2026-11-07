@@ -3,6 +3,15 @@ import SwiftUI
 struct OverviewView: View {
     @EnvironmentObject private var model: AppModel
 
+    var body: some View {
+        OverviewContent(powerMonitor: model.powerMonitor)
+    }
+}
+
+struct OverviewContent: View {
+    @EnvironmentObject private var model: AppModel
+    @ObservedObject var powerMonitor: PowerMonitor
+
     private var health: (title: String, detail: String, color: Color, symbol: String) {
         switch model.snapshot.thermalState {
         case .nominal:
@@ -96,6 +105,10 @@ struct OverviewView: View {
                         symbol: "clock.arrow.circlepath",
                         tint: Color(hex: 0xE1A127)
                     )
+                    TimelineView(.periodic(from: .now, by: 3)) { context in
+                        powerCard(at: context.date)
+                    }
+                    .accessibilityIdentifier("overview.power")
                 }
 
                 systemDetails
@@ -103,7 +116,26 @@ struct OverviewView: View {
             .padding(28)
             .frame(maxWidth: 1_160, alignment: .leading)
         }
-        .sectionRefresh(.overview, busy: model.isRefreshingMetrics) { await model.refreshMetrics() }
+        .sectionRefresh(.overview, busy: model.isRefreshingMetrics || powerMonitor.isRefreshing) {
+            await model.refreshMetrics()
+            await powerMonitor.refresh()
+        }
+    }
+
+    func powerCard(at date: Date) -> MetricCard {
+        // Match the Power page's freshness check, including a sample newer than the timeline tick.
+        let reading = powerMonitor.snapshot.reading(.system, at: max(date, powerMonitor.snapshot.sampledAt))
+        return MetricCard(
+            title: String(localized: "System Power"),
+            value: PowerReading.formatted(reading?.watts),
+            detail: reading?.source ?? (powerMonitor.isRefreshing && !powerMonitor.hasSampled
+                ? String(localized: "Measuring power…") : String(localized: "No current reading")),
+            symbol: "bolt.fill",
+            tint: AppSection.power.tint,
+            actionSymbol: "arrow.up.right",
+            actionHelp: String(localized: "View power details"),
+            action: { model.selection = .power }
+        )
     }
 
     private var healthBanner: some View {
