@@ -181,6 +181,13 @@ enum RelatedFileScanner {
         }
         var associatedRules = rules.map { ($0, RelatedFileAssociation.standard) }
         associatedRules += componentRules.map { ($0, RelatedFileAssociation.embeddedComponent) }
+        // A few documented product layouts use deeper or versioned vendor leaves.
+        // They still pass through the same permission, symlink and dedup checks.
+        // Keep them opt-in: another installed version may use the same data.
+        for layout in DocumentedApplicationData.rules(for: identifier) {
+            let rule: Rule = (library.appendingPathComponent(layout.libraryPath), layout.matches, layout.exactNames, false)
+            associatedRules.append((rule, .vendorSubfolder))
+        }
         // Autosave folders can contain unsaved work; XDG leaves can be shared with a CLI.
         // Keep both opt-in even if an identifier exactly matches the selected app.
         let dataLeaves = Set(Array(names) + identifiers).sorted()

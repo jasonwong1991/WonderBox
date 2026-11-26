@@ -1,6 +1,6 @@
 # 应用关联文件：覆盖范围与依据
 
-扫描使用标识符、精确产品名、组件元数据或签名声明，不使用公司名模糊匹配，也不为单个应用添加路径白名单。以下为 2026-10-11 查阅文档及上游源码后的覆盖矩阵。
+扫描以标识符、精确产品名、组件元数据或签名声明为主，不使用公司名模糊匹配。对常规层级和精确名称规则未覆盖的布局，补充有来源、受主应用 bundle ID 约束的窄范围规则；这些厂商叶子目录均待确认，不选择整个厂商目录。下表包含 2026-10-11 的通用覆盖调研，以及 2026-11-26 补充的 Navicat Premium / DataGrip 布局。
 
 | 数据布局 | 关联依据 | 默认选择 |
 | --- | --- | --- |
@@ -8,6 +8,8 @@
 | `~/Library/<产品名>` 自定义目录、名称型日志与偏好设置 | 精确名称；排除共用 Library 根目录 | 选中 |
 | Containers（含 UUID 目录）、Group Containers、Application Scripts、应用组偏好设置 | 标识符或容器所有者元数据；应用组来自代码签名 | 独立组件/共享组待确认 |
 | Application Support 厂商子目录 | 精确产品叶子目录；不选择整个厂商目录 | 待确认 |
+| **新增** Navicat Premium `~/Library/Application Support/PremiumSoft CyberTech/Navicat CC/Navicat Premium` | 仅 Navicat Premium bundle ID（当前 `com.navicat.NavicatPremium` 或旧版 `com.prect.NavicatPremium<数字>`）；精确叶子，不选择 PremiumSoft CyberTech / Navicat CC / Common | 待确认 |
+| **新增** DataGrip `~/Library/{Application Support,Caches,Logs}/JetBrains/DataGrip<版本>` | 仅 `com.jetbrains.datagrip`；精确 DataGrip 版本目录，不匹配 JetBrains 其他 IDE 或项目目录 | 待确认 |
 | 内嵌 Helper、XPC、扩展、登录项、QuickLook/Spotlight 插件的数据 | 选中应用内的组件标识符 | 待确认 |
 | LaunchAgents、LaunchDaemons、PrivilegedHelperTools | 标识符、声明的 helper 或程序路径指向应用内部 | 共享 helper 待确认 |
 | Darwin 用户临时/缓存目录 | 应用或组件标识符 | 组件待确认 |
@@ -28,6 +30,7 @@
 ## 不作为普通关联文件删除的内容
 
 - 不根据应用名扫描或删除 Documents、Desktop、照片、云盘文档；不读取文档内容来猜测归属。
+- DataGrip 项目级连接保存在项目的 `.idea/dataSources.xml`，默认项目根为 `~/DataGripProjects`；它属于项目文档，卸载保留。清理 Application Support 解决配置目录漏扫，重新打开原项目仍会显示项目级连接，参见 [Data sources](https://www.jetbrains.com/help/datagrip/managing-data-sources.html)。
 - 不删除 Keychains、TCC 权限库、后台项目 BTM 数据库、全局 sharedfilelist、安装收据或共用 SDK/厂商根目录。
 - 不直接移除驱动、内核/系统扩展、HAL 音频驱动或系统域内容；这类软件需使用其卸载流程或系统服务注销接口。
 - 不跟随符号链接、不展开任意深度/任意环境变量配置的目录、不扩大到任意产品名前缀。未有明确归属证据的历史目录仍可能遗漏；本矩阵不是零残留保证。
@@ -41,5 +44,7 @@
 5. [Sparkle：SPULocalCacheDirectory.m](https://github.com/sparkle-project/Sparkle/blob/2.x/Sparkle/SPULocalCacheDirectory.m) — 当前 Sparkle 优先按应用标识符分隔缓存，已有常规缓存规则覆盖；补充兼容共享缓存根下的精确产品叶子。
 6. [Sentry Cocoa：SentryCrash.m](https://github.com/getsentry/sentry-cocoa/blob/main/Sources/SentryCrash/Recording/SentryCrash.m) — SentryCrash 按 bundleName 建立子目录；仅对已知默认布局做精确探测，不猜测自定义 basePath。
 7. [Apple：Updating helper executables from earlier versions of macOS](https://developer.apple.com/documentation/servicemanagement/updating-helper-executables-from-earlier-versions-of-macos) — 服务生命周期与共享系统记录不应等同于直接删除文件。
+8. [Navicat：How to get the connection information when migrating to new computer](https://help.navicat.com/hc/en-us/articles/218281627-How-to-get-the-connection-information-when-migrating-Navicat-to-new-computer) 及 [Homebrew Navicat Premium zap paths](https://github.com/Homebrew/homebrew-cask/blob/master/Casks/n/navicat-premium.rb) — 连接配置存储于产品数据目录；匹配仅采用 Premium 精确叶子。
+9. [JetBrains：Directories used by the IDE](https://www.jetbrains.com/help/datagrip/directories-used-by-the-ide-to-store-settings-caches-plugins-and-logs.html) — macOS 配置、缓存、日志位于 JetBrains/DataGrip<版本> 的独立目录；产品允许自定义路径，所以非默认路径仍可能留存。
 
-验证：`RelatedFileCoverageTests` 覆盖多产品布局、近似名称/兄弟应用/用户文档/驱动反例、symlink、插件预算、权限失败、缓存失效和非递归发现；`RelatedFileSelectionTests` 覆盖全选/未全选、大小未知/下限、路径去重、饱和加法、已在废纸篓应用及紧凑布局。原有身份、Electron、卸载和性能测试继续运行。
+验证：`DatabaseApplicationDataTests` 覆盖 Navicat Premium 多层厂商目录、DataGrip 多版本配置/缓存/日志、近似名称和其他 IDE 排除、符号链接、目录读取失败、非递归发现，以及明确勾选后仅移除产品自身数据。`RelatedFileCoverageTests` 覆盖多产品布局、近似名称/兄弟应用/用户文档/驱动反例、symlink、插件预算、权限失败、缓存失效和非递归发现；`RelatedFileSelectionTests` 覆盖全选/未全选、大小未知/下限、路径去重、饱和加法、已在废纸篓应用及紧凑布局。原有身份、Electron、卸载和性能测试继续运行。

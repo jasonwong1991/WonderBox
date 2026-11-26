@@ -33,8 +33,8 @@
 | 系统／CPU／GPU 功耗历史 | 应用卸载与关联文件复查 | 卸载监测插件、自动清理 |
 | 温度传感器与风扇转速 | 逐层浏览磁盘占用 | 中英文、浅色／深色、四种强调色 |
 
-**发行版**：[1.2.4 · 构建 124](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.4) · [更新说明](docs/releases/v1.2.4.md)。
-**1.2.4 新增**：概览页增加**整机功耗卡片**，菜单栏可选显示**系统功耗**（默认关闭）。README 截图统一为浅色，仅主题设置示例保留深色。
+**发行版**：[1.2.5 · 构建 125](https://github.com/jasonwong1991/WonderBox/releases/tag/v1.2.5) · [更新说明](docs/releases/v1.2.5.md)。
+**1.2.5 新增**：卸载扫描支持 Navicat Premium，以及带版本号的 DataGrip Application Support、缓存和日志目录。
 
 扫描结果和诊断记录留在本机。更新检查会连接 GitHub；日志只有在你导出并主动发送时才会分享。没有账号、遥测或自动上传日志。
 
